@@ -1,0 +1,360 @@
+[
+  {
+    "id": 1,
+    "query": "What is the definition of Confidential Information?",
+    "category": "Confidentiality",
+    "expected_pages": [2],
+    "expected_keywords": ["confidential", "information", "disclose"]
+  },
+  {
+    "id": 2,
+    "query": "What items are excluded from Confidential Information?",
+    "category": "Confidentiality",
+    "expected_pages": [4],
+    "expected_keywords": ["public", "prior", "independent", "excluded"]
+  },
+  {
+    "id": 3,
+    "query": "What is the effective date of this agreement?",
+    "category": "Term & Effective Date",
+    "expected_pages": [1],
+    "expected_keywords": ["effective", "date", "entered"]
+  },
+  {
+    "id": 4,
+    "query": "What is the duration or term of the confidentiality obligations?",
+    "category": "Term & Effective Date",
+    "expected_pages": [4],
+    "expected_keywords": ["term", "years", "duration", "expiration"]
+  },
+  {
+    "id": 5,
+    "query": "What is the governing law and jurisdiction specified in the contract?",
+    "category": "Governing Law",
+    "expected_pages": [8],
+    "expected_keywords": ["governing", "law", "jurisdiction", "state", "court"]
+  },
+  {
+    "id": 6,
+    "query": "Is there a limitation of liability clause?",
+    "category": "Liability",
+    "expected_pages": [5],
+    "expected_keywords": ["liability", "limitation", "maximum", "cap"]
+  },
+  {
+    "id": 7,
+    "query": "Are indirect or consequential damages excluded?",
+    "category": "Liability",
+    "expected_pages": [5],
+    "expected_keywords": ["consequential", "indirect", "punitive", "special"]
+  },
+  {
+    "id": 8,
+    "query": "What are the termination notice requirements?",
+    "category": "Termination",
+    "expected_pages": [6],
+    "expected_keywords": ["termination", "notice", "written", "days"]
+  },
+  {
+    "id": 9,
+    "query": "Can either party terminate for convenience?",
+    "category": "Termination",
+    "expected_pages": [6],
+    "expected_keywords": ["terminate", "convenience", "written", "notice"]
+  },
+  {
+    "id": 10,
+    "query": "What happens to confidential materials upon agreement termination?",
+    "category": "Return of Materials",
+    "expected_pages": [3, 6],
+    "expected_keywords": ["return", "destroy", "materials", "copies"]
+  },
+  {
+    "id": 11,
+    "query": "Is there an indemnification provision protecting the parties?",
+    "category": "Indemnification",
+    "expected_pages": [5],
+    "expected_keywords": ["indemnify", "indemnification", "hold harmless", "claims"]
+  },
+  {
+    "id": 12,
+    "query": "Who owns intellectual property created during the performance of services?",
+    "category": "Intellectual Property",
+    "expected_pages": [4],
+    "expected_keywords": ["intellectual", "property", "ownership", "work for hire"]
+  },
+  {
+    "id": 13,
+    "query": "Does the contract contain a non-compete clause?",
+    "category": "Restrictive Covenants",
+    "expected_pages": [],
+    "answerable": false,
+    "expected_keywords": ["non-compete", "compete", "solicit", "restriction"]
+  },
+  {
+    "id": 14,
+    "query": "What is the non-solicitation restriction window?",
+    "category": "Restrictive Covenants",
+    "expected_pages": [6],
+    "expected_keywords": ["non-solicit", "solicit", "employees", "customers"]
+  },
+  {
+    "id": 15,
+    "query": "What payment terms and due dates are stipulated?",
+    "category": "Payment Terms",
+    "expected_pages": [2],
+    "expected_keywords": ["payment", "due", "invoices", "net"]
+  },
+  {
+    "id": 16,
+    "query": "What interest or penalty applies to late payments?",
+    "category": "Payment Terms",
+    "expected_pages": [2],
+    "expected_keywords": ["late", "interest", "penalty", "fee"]
+  },
+  {
+    "id": 17,
+    "query": "How are disputes resolved under this contract?",
+    "category": "Dispute Resolution",
+    "expected_pages": [8],
+    "expected_keywords": ["dispute", "arbitration", "mediation", "venue"]
+  },
+  {
+    "id": 18,
+    "query": "Is mandatory arbitration required for legal claims?",
+    "category": "Dispute Resolution",
+    "expected_pages": [8],
+    "expected_keywords": ["arbitration", "arbitrator", "binding"]
+  },
+  {
+    "id": 19,
+    "query": "What representations and warranties are made by the parties?",
+    "category": "Warranties",
+    "expected_pages": [5],
+    "expected_keywords": ["warranties", "represents", "warrants", "disclaimer"]
+  },
+  {
+    "id": 20,
+    "query": "Are standard warranties disclaimed as-is?",
+    "category": "Warranties",
+    "expected_pages": [5],
+    "expected_keywords": ["as-is", "disclaimer", "merchantability", "fitness"]
+  },
+  {
+    "id": 21,
+    "query": "Who are the named parties entering into this agreement?",
+    "category": "Parties",
+    "expected_pages": [1],
+    "expected_keywords": ["parties", "disclosing", "receiving", "entered"]
+  },
+  {
+    "id": 22,
+    "query": "What entity type or state of incorporation is listed for the parties?",
+    "category": "Parties",
+    "expected_pages": [1],
+    "expected_keywords": ["corporation", "llc", "state", "company"]
+  },
+  {
+    "id": 23,
+    "query": "What standard of care is required for handling confidential data?",
+    "category": "Confidentiality",
+    "expected_pages": [4],
+    "expected_keywords": ["degree", "care", "reasonable", "protect"]
+  },
+  {
+    "id": 24,
+    "query": "Are representatives and employees covered under non-disclosure obligations?",
+    "category": "Confidentiality",
+    "expected_pages": [4],
+    "expected_keywords": ["representatives", "employees", "advisors", "agents"]
+  },
+  {
+    "id": 25,
+    "query": "What constitutes a material breach of contract?",
+    "category": "Breach & Default",
+    "expected_pages": [6],
+    "expected_keywords": ["breach", "material", "default", "remedies"]
+  },
+  {
+    "id": 26,
+    "query": "What is the cure period available after notice of default?",
+    "category": "Breach & Default",
+    "expected_pages": [6],
+    "expected_keywords": ["cure", "days", "written", "notice"]
+  },
+  {
+    "id": 27,
+    "query": "Is injunctive relief authorized for breach of confidentiality?",
+    "category": "Remedies",
+    "expected_pages": [],
+    "answerable": false,
+    "expected_keywords": ["injunctive", "relief", "equitable", "injunction"]
+  },
+  {
+    "id": 28,
+    "query": "Does the prevailing party recover attorney fees in legal disputes?",
+    "category": "Dispute Resolution",
+    "expected_pages": [],
+    "answerable": false,
+    "expected_keywords": ["attorney", "fees", "costs", "prevailing"]
+  },
+  {
+    "id": 29,
+    "query": "Are class action lawsuits waived under the dispute terms?",
+    "category": "Dispute Resolution",
+    "expected_pages": [],
+    "answerable": false,
+    "expected_keywords": ["class action", "waiver", "individual"]
+  },
+  {
+    "id": 30,
+    "query": "What notice address or delivery method is required for legal notices?",
+    "category": "Notices",
+    "expected_pages": [8],
+    "expected_keywords": ["notice", "address", "written", "certified", "email"]
+  },
+  {
+    "id": 31,
+    "query": "Is assignment of rights permitted without prior written consent?",
+    "category": "Assignment",
+    "expected_pages": [9],
+    "expected_keywords": ["assignment", "assign", "consent", "written"]
+  },
+  {
+    "id": 32,
+    "query": "What happens if a court finds a clause invalid or unenforceable?",
+    "category": "Severability",
+    "expected_pages": [9],
+    "expected_keywords": ["severability", "invalid", "unenforceable", "remainder"]
+  },
+  {
+    "id": 33,
+    "query": "Does this document represent the entire agreement between the parties?",
+    "category": "Entire Agreement",
+    "expected_pages": [9],
+    "expected_keywords": ["entire", "agreement", "supersedes", "understanding"]
+  },
+  {
+    "id": 34,
+    "query": "Can terms be modified or amended orally?",
+    "category": "Amendments",
+    "expected_pages": [9],
+    "expected_keywords": ["amend", "modification", "written", "signed"]
+  },
+  {
+    "id": 35,
+    "query": "What force majeure events excuse performance failures?",
+    "category": "Force Majeure",
+    "expected_pages": [7],
+    "expected_keywords": ["force majeure", "act of god", "war", "delay"]
+  },
+  {
+    "id": 36,
+    "query": "Are audit rights granted to inspect books and records?",
+    "category": "Audit Rights",
+    "expected_pages": [7],
+    "expected_keywords": ["audit", "inspect", "records", "books"]
+  },
+  {
+    "id": 37,
+    "query": "What insurance coverage limits are required?",
+    "category": "Insurance",
+    "expected_pages": [7],
+    "expected_keywords": ["insurance", "coverage", "policy", "liability"]
+  },
+  {
+    "id": 38,
+    "query": "What trade secrets provisions are included?",
+    "category": "Confidentiality",
+    "expected_pages": [4],
+    "expected_keywords": ["trade secret", "proprietary", "know-how"]
+  },
+  {
+    "id": 39,
+    "query": "How are public announcements or press releases restricted?",
+    "category": "Publicity",
+    "expected_pages": [],
+    "answerable": false,
+    "expected_keywords": ["publicity", "press release", "announcement", "consent"]
+  },
+  {
+    "id": 40,
+    "query": "Is there a survival clause for confidentiality post termination?",
+    "category": "Survival",
+    "expected_pages": [4],
+    "expected_keywords": ["survival", "survive", "termination", "expiration"]
+  },
+  {
+    "id": 41,
+    "query": "What license rights are granted to proprietary materials?",
+    "category": "Intellectual Property",
+    "expected_pages": [4],
+    "expected_keywords": ["license", "grant", "rights", "revocable"]
+  },
+  {
+    "id": 42,
+    "query": "Are liquidated damages specified for breach of contract?",
+    "category": "Damages",
+    "expected_pages": [],
+    "answerable": false,
+    "expected_keywords": ["liquidated", "damages", "amount", "penalty"]
+  },
+  {
+    "id": 43,
+    "query": "What happens if confidential information is subpoenaed by court order?",
+    "category": "Compelled Disclosure",
+    "expected_pages": [4],
+    "expected_keywords": ["compelled", "subpoena", "court order", "law"]
+  },
+  {
+    "id": 44,
+    "query": "Is a protective order allowed for compelled disclosures?",
+    "category": "Compelled Disclosure",
+    "expected_pages": [4],
+    "expected_keywords": ["protective order", "notice", "oppose"]
+  },
+  {
+    "id": 45,
+    "query": "Are electronic signatures legally binding under this contract?",
+    "category": "Execution",
+    "expected_pages": [9],
+    "expected_keywords": ["electronic", "signature", "counterparts", "docusign"]
+  },
+  {
+    "id": 46,
+    "query": "Can the contract be executed in multiple counterparts?",
+    "category": "Execution",
+    "expected_pages": [9],
+    "expected_keywords": ["counterparts", "executed", "copies"]
+  },
+  {
+    "id": 47,
+    "query": "What compliance with laws or anti-corruption terms are included?",
+    "category": "Compliance",
+    "expected_pages": [7],
+    "expected_keywords": ["compliance", "laws", "regulations", "bribery"]
+  },
+  {
+    "id": 48,
+    "query": "Are independent contractor relationships explicitly affirmed?",
+    "category": "Relationship",
+    "expected_pages": [],
+    "answerable": false,
+    "expected_keywords": ["independent contractor", "relationship", "partner"]
+  },
+  {
+    "id": 49,
+    "query": "Are third-party beneficiaries granted rights under the agreement?",
+    "category": "Third Parties",
+    "expected_pages": [],
+    "answerable": false,
+    "expected_keywords": ["third-party", "beneficiaries", "enforce"]
+  },
+  {
+    "id": 50,
+    "query": "What are the waiver rules for failure to enforce contract rights?",
+    "category": "Waivers",
+    "expected_pages": [9],
+    "expected_keywords": ["waiver", "enforce", "delay", "failure"]
+  }
+]

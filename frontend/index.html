@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Document Intelligence & Negotiation Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --accent-cyan: #38bdf8;
+            --accent-purple: #c084fc;
+            --accent-amber: #fbbf24;
+            --accent-red: #f87171;
+            --accent-green: #4ade80;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0b0f19 0%, #0f172a 50%, #1e1b4b 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 1.25rem 2rem;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo-group { display: flex; align-items: center; gap: 0.75rem; }
+        .logo-icon { font-size: 1.8rem; }
+        .logo-title { font-weight: 800; font-size: 1.25rem; background: linear-gradient(90deg, #38bdf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .logo-sub { font-size: 0.75rem; color: var(--text-secondary); letter-spacing: 0.5px; }
+
+        .status-badge {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-cyan);
+            padding: 0.4rem 0.8rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        main { flex: 1; padding: 2rem; max-width: 1400px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 2rem; }
+
+        .dashboard-grid { display: grid; grid-template-columns: 360px 1fr; gap: 1.75rem; }
+
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        .card-title { font-size: 1.05rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.5rem; }
+
+        .dropzone {
+            border: 2px dashed rgba(56, 189, 248, 0.4);
+            border-radius: 12px;
+            padding: 2rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(56, 189, 248, 0.02);
+        }
+        .dropzone:hover { border-color: var(--accent-cyan); background: rgba(56, 189, 248, 0.08); }
+        .dropzone-icon { font-size: 2.5rem; margin-bottom: 0.5rem; color: var(--accent-cyan); }
+        .dropzone-text { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+        .dropzone-sub { font-size: 0.75rem; color: var(--text-secondary); }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-top: 1rem; }
+        .stat-box { background: rgba(15, 23, 42, 0.6); padding: 0.75rem; border-radius: 8px; border: 1px solid var(--card-border); }
+        .stat-label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-val { font-size: 1.1rem; font-weight: 700; color: var(--accent-cyan); margin-top: 0.2rem; }
+
+        .tab-bar { display: flex; gap: 0.5rem; background: rgba(15, 23, 42, 0.8); padding: 0.35rem; border-radius: 12px; border: 1px solid var(--card-border); margin-bottom: 1.5rem; }
+        .tab-btn { flex: 1; padding: 0.65rem 1rem; border: none; background: transparent; color: var(--text-secondary); font-weight: 600; font-size: 0.85rem; border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center; }
+        .tab-btn.active { background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(192, 132, 252, 0.2)); color: var(--text-primary); border: 1px solid rgba(56, 189, 248, 0.3); }
+
+        .heatmap-list { display: flex; flex-direction: column; gap: 0.75rem; }
+        .heatmap-item { background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 10px; padding: 1rem; transition: transform 0.2s; }
+        .heatmap-item:hover { transform: translateY(-2px); border-color: rgba(56, 189, 248, 0.4); }
+        .heatmap-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .heatmap-cat { font-weight: 700; font-size: 0.95rem; }
+        .badge-low { background: rgba(74, 222, 128, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green); padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+        .badge-mod { background: rgba(251, 191, 36, 0.15); color: var(--accent-amber); border: 1px solid var(--accent-amber); padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+        .badge-high { background: rgba(248, 113, 113, 0.15); color: var(--accent-red); border: 1px solid var(--accent-red); padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+        .heatmap-excerpt { font-size: 0.85rem; color: var(--text-secondary); font-style: italic; margin-bottom: 0.5rem; border-left: 2px solid var(--accent-cyan); padding-left: 0.5rem; }
+        .summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+        .summary-text { white-space: pre-wrap; line-height: 1.7; font-size: 0.9rem; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--card-border); border-radius: 10px; padding: 1rem; }
+        .diagnostic { margin-top: 0.65rem; padding: 0.55rem 0.7rem; border-radius: 8px; background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.3); color: var(--accent-amber); font-size: 0.75rem; }
+
+        .chat-box { display: flex; flex-direction: column; gap: 1rem; min-height: 350px; }
+        .chat-input-group { display: flex; gap: 0.5rem; }
+        .chat-input { flex: 1; background: rgba(15, 23, 42, 0.8); border: 1px solid var(--card-border); border-radius: 10px; padding: 0.8rem 1rem; color: var(--text-primary); font-family: inherit; font-size: 0.9rem; outline: none; }
+        .chat-input:focus { border-color: var(--accent-cyan); }
+        .btn-primary { background: linear-gradient(135deg, #38bdf8, #818cf8); border: none; color: #000; font-weight: 700; padding: 0.8rem 1.5rem; border-radius: 10px; cursor: pointer; transition: opacity 0.2s; }
+        .btn-primary:hover { opacity: 0.9; }
+
+        .evidence-card { background: rgba(15, 23, 42, 0.8); border: 1px dashed var(--accent-cyan); border-radius: 10px; padding: 1rem; margin-top: 0.75rem; }
+        .evidence-head { font-size: 0.8rem; font-weight: 700; color: var(--accent-cyan); margin-bottom: 0.3rem; display: flex; justify-content: space-between; }
+
+        .custom-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.85rem; }
+        .custom-table th { text-align: left; padding: 0.75rem; background: rgba(15, 23, 42, 0.9); color: var(--accent-cyan); border-bottom: 1px solid var(--card-border); }
+        .custom-table td { padding: 0.75rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+
+        .hidden { display: none !important; }
+        .spinner { border: 3px solid rgba(255, 255, 255, 0.1); border-top: 3px solid var(--accent-cyan); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-group">
+            <span class="logo-icon">⚖️</span>
+            <div>
+                <div class="logo-title">LEGAL AI INTELLIGENCE & NEGOTIATION PLATFORM</div>
+                <div class="logo-sub">Hybrid Dense+BM25 RAG • Risk Heatmaps • Negotiation Assistant • 50-Query Ablation Tested</div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 0.75rem; align-items: center;">
+            <div style="background: rgba(251, 191, 36, 0.1); border: 1px solid var(--accent-amber); color: var(--accent-amber); padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                ⚠️ AI Output for Legal Review (Not Legal Advice)
+            </div>
+            <div class="status-badge" id="llm-status">⚡ REST API: http://localhost:8080</div>
+        </div>
+    </header>
+
+
+    <main>
+        <div class="dashboard-grid">
+            <aside style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <span class="card-title">📂 Document Dropzone</span>
+                    </div>
+                    <div class="dropzone" id="dropzone-box" onclick="document.getElementById('file-input').click()">
+                        <div class="dropzone-icon">📄</div>
+                        <div class="dropzone-text">Click or Drag PDF Contract</div>
+                        <div class="dropzone-sub">Supports NDAs, MSAs, Leases & Commercial Contracts</div>
+                        <input type="file" id="file-input" accept=".pdf" class="hidden" onchange="handleFileUpload(event)">
+                    </div>
+
+                    <div id="loading-spinner" class="hidden" style="text-align: center; margin-top: 1rem;">
+                        <span class="spinner"></span>
+                        <div style="font-size: 0.8rem; color: var(--accent-cyan); margin-top: 0.5rem;">Parsing PDF & Building Hybrid Vector Index...</div>
+                    </div>
+
+                    <div class="stats-grid hidden" id="doc-stats">
+                        <div class="stat-box"><div class="stat-label">Doc Type</div><div class="stat-val" id="stat-type" style="font-size: 0.85rem;">-</div></div>
+                        <div class="stat-box"><div class="stat-label">Pages</div><div class="stat-val" id="stat-pages">-</div></div>
+                        <div class="stat-box"><div class="stat-label">Words</div><div class="stat-val" id="stat-words">-</div></div>
+                        <div class="stat-box"><div class="stat-label">Chunks</div><div class="stat-val" id="stat-chunks">-</div></div>
+                    </div>
+                </div>
+
+                <div class="glass-card">
+                    <div class="card-header">
+                        <span class="card-title">🚀 Quick Actions</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <button class="btn-primary" style="background: rgba(56, 189, 248, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan);" onclick="loadSummary()">📄 Executive Summary</button>
+                        <button class="btn-primary" style="background: rgba(192, 132, 252, 0.15); color: var(--accent-purple); border: 1px solid var(--accent-purple);" onclick="loadHeatmap()">📊 Risk Heatmap Audit</button>
+                        <button class="btn-primary" style="background: rgba(251, 191, 36, 0.15); color: var(--accent-amber); border: 1px solid var(--accent-amber);" onclick="loadObligations()">📅 Obligation Extractor</button>
+                    </div>
+                </div>
+            </aside>
+
+            <section style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <div class="tab-bar">
+                    <button class="tab-btn active" data-tab="heatmap-tab" onclick="switchTab('heatmap-tab', this)">📊 Risk Heatmap</button>
+                    <button class="tab-btn" data-tab="summary-tab" onclick="switchTab('summary-tab', this)">📄 Summary</button>
+                    <button class="tab-btn" data-tab="qa-tab" onclick="switchTab('qa-tab', this)">💬 Grounded Legal Q&A</button>
+                    <button class="tab-btn" data-tab="negotiate-tab" onclick="switchTab('negotiate-tab', this)">⚖️ Negotiation Assistant</button>
+                    <button class="tab-btn" data-tab="obligations-tab" onclick="switchTab('obligations-tab', this)">📅 Obligations</button>
+                    <button class="tab-btn" data-tab="compare-tab" onclick="switchTab('compare-tab', this)">🔄 Contract Comparison</button>
+                </div>
+
+                <div id="heatmap-tab" class="tab-content">
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <span class="card-title">📊 Clause-Level Structural Risk Heatmap</span>
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">Automated 8-Category Risk Breakdown</span>
+                        </div>
+                        <div class="heatmap-list" id="heatmap-container">
+                            <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">Upload a PDF document to generate an automated Clause Risk Heatmap.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="summary-tab" class="tab-content hidden">
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <span class="card-title">📄 Executive Summary & Document Classification</span>
+                            <span style="font-size: 0.8rem; color: var(--accent-cyan);">Grounded in uploaded contract pages</span>
+                        </div>
+                        <div id="summary-container">
+                            <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">Upload a PDF, then click Executive Summary.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="qa-tab" class="tab-content hidden">
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <span class="card-title">💬 Grounded Legal Query Engine</span>
+                            <span style="font-size: 0.8rem; color: var(--accent-cyan);">Hybrid Dense + BM25 Retrieval</span>
+                        </div>
+                        <div class="chat-box">
+                            <div class="chat-input-group">
+                                <input type="text" id="qa-input" class="chat-input" placeholder="Ask any question about this contract (e.g. 'What is the liability cap?')" onkeypress="if(event.key==='Enter') executeQA()">
+                                <button class="btn-primary" onclick="executeQA()">Ask AI</button>
+                            </div>
+                            <div id="qa-output" style="margin-top: 1rem; font-size: 0.95rem; line-height: 1.6;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="negotiate-tab" class="tab-content hidden">
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <span class="card-title">⚖️ Contract Negotiation & Safer Alternative Generator</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 1rem;">
+                            <textarea id="clause-input" class="chat-input" rows="4" placeholder="Paste a risky contract clause here (e.g. 'Either party may terminate immediately without notice and liability is uncapped.')"></textarea>
+                            <button class="btn-primary" style="align-self: flex-end;" onclick="evaluateNegotiation()">Analyze & Draft Safer Alternative</button>
+                            <div id="negotiate-output" style="margin-top: 1rem;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="obligations-tab" class="tab-content hidden">
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <span class="card-title">📅 Structured Obligation & Deadline Extractor</span>
+                        </div>
+                        <div id="obligations-container">
+                            <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">Click 'Obligation Extractor' to parse duties, payments, and deadlines.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="compare-tab" class="tab-content hidden">
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <span class="card-title">🔄 Contract Version Comparison Engine ("What's Changed?")</span>
+                        </div>
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                            <div class="dropzone" style="flex: 1;" onclick="document.getElementById('compare-file-2').click()">
+                                <div class="dropzone-icon">📄</div>
+                                <div class="dropzone-text">Upload Contract Version 2</div>
+                                <input type="file" id="compare-file-2" accept=".pdf" class="hidden" onchange="handleCompareUpload(event)">
+                            </div>
+                        </div>
+                        <div id="compare-container">
+                            <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">Upload a second contract version to perform side-by-side clause diffing.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script>
+        const API_HOST = '';
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        async function readApiResponse(response) {
+            let data;
+            try {
+                data = await response.json();
+            } catch (_) {
+                throw new Error(`Server returned HTTP ${response.status}.`);
+            }
+            if (!response.ok) {
+                throw new Error(data.error || `Request failed with HTTP ${response.status}.`);
+            }
+            return data;
+        }
+
+        async function loadApiStatus() {
+            const badge = document.getElementById('llm-status');
+            try {
+                const response = await fetch(`${API_HOST}/api/status`, { credentials: 'include' });
+                const data = await readApiResponse(response);
+                const providers = Array.isArray(data.llm_providers)
+                    ? data.llm_providers.map(name => String(name).toUpperCase()).join(' → ')
+                    : '';
+                badge.innerText = data.llm_configured
+                    ? `⚡ API Online • LLM: ${providers || 'Configured'}`
+                    : '⚠️ API Online • No LLM Key';
+            } catch (_) {
+                badge.innerText = '❌ REST API Offline';
+                badge.style.color = 'var(--accent-red)';
+                badge.style.borderColor = 'var(--accent-red)';
+            }
+        }
+
+        function riskBadgeClass(riskLevel) {
+            const level = String(riskLevel || '').toUpperCase();
+            if (level.includes('HIGH')) return 'badge-high';
+            if (level.includes('MODERATE')) return 'badge-mod';
+            if (level.includes('LOW')) return 'badge-low';
+            return 'badge-mod';
+        }
+
+        function switchTab(tabId, sourceButton = null) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById(tabId);
+            if (!target) return;
+            target.classList.remove('hidden');
+            const button = sourceButton || document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+            if (button) button.classList.add('active');
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('loading-spinner').classList.remove('hidden');
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(`${API_HOST}/api/upload`, { method: 'POST', body: formData, credentials: 'include' });
+                const data = await readApiResponse(res);
+                document.getElementById('loading-spinner').classList.add('hidden');
+
+                if (data.status === 'success') {
+                    document.getElementById('doc-stats').classList.remove('hidden');
+                    document.getElementById('stat-type').innerText = data.doc_type;
+                    document.getElementById('stat-pages').innerText = data.pages;
+                    document.getElementById('stat-words').innerText = data.words.toLocaleString();
+                    document.getElementById('stat-chunks').innerText = data.chunks;
+                    loadHeatmap();
+                } else {
+                    alert('Error loading document: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                document.getElementById('loading-spinner').classList.add('hidden');
+                alert('Upload failed: ' + err.message);
+            }
+        }
+
+        async function loadHeatmap() {
+            const container = document.getElementById('heatmap-container');
+            container.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Generating Clause Risk Heatmap...</div>';
+            
+            try {
+                const res = await fetch(`${API_HOST}/api/heatmap`, { credentials: 'include' });
+                const data = await readApiResponse(res);
+                container.innerHTML = '';
+
+                data.forEach(item => {
+                    const badgeClass = riskBadgeClass(item.risk_level);
+                    const diagnosticHtml = item.diagnostic
+                        ? `<div class="diagnostic"><strong>Provider diagnostic:</strong> ${escapeHtml(item.diagnostic)}</div>`
+                        : '';
+
+                    const card = document.createElement('div');
+                    card.className = 'heatmap-item';
+                    card.innerHTML = `
+                        <div class="heatmap-top">
+                            <span class="heatmap-cat">${escapeHtml(item.clause_title)}</span>
+                            <span class="${badgeClass}">${escapeHtml(item.risk_level)}</span>
+                        </div>
+                        <div class="heatmap-excerpt">"[Page ${escapeHtml(item.page)}] ${escapeHtml(item.excerpt)}"</div>
+                        <div style="font-size:0.85rem; margin-bottom:0.3rem;"><strong>Why Risky:</strong> ${escapeHtml(item.why_risky)}</div>
+                        <div style="font-size:0.85rem; color:var(--accent-cyan);"><strong>Action Tip:</strong> ${escapeHtml(item.recommendation)}</div>
+                        ${diagnosticHtml}
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (err) {
+                container.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        async function loadSummary() {
+            switchTab('summary-tab');
+            const container = document.getElementById('summary-container');
+            container.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Generating grounded executive summary...</div>';
+
+            try {
+                const response = await fetch(`${API_HOST}/api/summary`, { credentials: 'include' });
+                const data = await readApiResponse(response);
+                const classification = data.classification || {};
+                const focusAreas = Array.isArray(classification.target_risk_focus)
+                    ? classification.target_risk_focus.join(', ')
+                    : 'Not specified';
+                const confidence = Number(classification.confidence);
+                const confidenceText = Number.isFinite(confidence)
+                    ? `${Math.round(confidence * 100)}%`
+                    : 'Not available';
+                const diagnosticHtml = data.diagnostic
+                    ? `<div class="diagnostic"><strong>Provider diagnostic:</strong> ${escapeHtml(data.diagnostic)}</div>`
+                    : '';
+
+                container.innerHTML = `
+                    <div class="summary-grid">
+                        <div class="stat-box"><div class="stat-label">Document Type</div><div class="stat-val" style="font-size:0.9rem;">${escapeHtml(classification.doc_type || 'Legal Agreement')}</div></div>
+                        <div class="stat-box"><div class="stat-label">Classification Confidence</div><div class="stat-val">${escapeHtml(confidenceText)}</div></div>
+                        <div class="stat-box" style="grid-column:1 / -1;"><div class="stat-label">Priority Review Areas</div><div style="margin-top:0.35rem; color:var(--text-primary);">${escapeHtml(focusAreas)}</div></div>
+                    </div>
+                    <div class="summary-text">${escapeHtml(data.summary || 'No summary was returned.')}</div>
+                    ${diagnosticHtml}
+                `;
+            } catch (error) {
+                container.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        async function executeQA() {
+            const query = document.getElementById('qa-input').value.trim();
+            if (!query) return;
+            const output = document.getElementById('qa-output');
+            output.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Searching hybrid index & generating grounded answer...</div>';
+
+            try {
+                const res = await fetch(`${API_HOST}/api/qa`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({question: query}),
+                    credentials: 'include'
+                });
+                const data = await readApiResponse(res);
+                
+                let evidenceHtml = '';
+                if (data.sources) {
+                    evidenceHtml = data.sources.map(s => `
+                        <div class="evidence-card">
+                            <div class="evidence-head"><span>📌 Source Evidence — [Page ${escapeHtml(s.page)}]</span><span>${escapeHtml(s.score_type)}: ${escapeHtml(s.score)}</span></div>
+                            <div style="font-size:0.85rem; color:var(--text-secondary);">${escapeHtml(s.text)}</div>
+                        </div>
+                    `).join('');
+                }
+
+                output.innerHTML = `
+                    <div style="background:rgba(15, 23, 42, 0.6); padding:1rem; border-radius:10px; border:1px solid var(--card-border);">
+                        <strong>Answer:</strong><br>${escapeHtml(data.answer).replace(/\n/g, '<br>')}
+                    </div>
+                    <div style="margin-top:1rem;"><strong>Retrieved Source Evidence:</strong>${evidenceHtml}</div>
+                `;
+            } catch (err) {
+                output.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        async function evaluateNegotiation() {
+            const text = document.getElementById('clause-input').value.trim();
+            if (!text) return;
+            const output = document.getElementById('negotiate-output');
+            output.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Analyzing legal exposure & drafting safer alternative...</div>';
+
+            try {
+                const res = await fetch(`${API_HOST}/api/negotiate`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({clause: text}),
+                    credentials: 'include'
+                });
+                const data = await readApiResponse(res);
+
+                output.innerHTML = `
+                    <div class="heatmap-item" style="border-color:var(--accent-purple);">
+                        <div class="heatmap-top">
+                            <span class="heatmap-cat">Negotiation Risk Evaluation</span>
+                            <span class="${riskBadgeClass(data.risk_level)}">${escapeHtml(data.risk_level)}</span>
+                        </div>
+                        <div style="font-size:0.85rem; margin-bottom:0.5rem;"><strong>Assessment:</strong> ${escapeHtml(data.assessment || data.analysis)}</div>
+                        <div style="font-size:0.85rem; margin-bottom:0.5rem;"><strong>Potential Impact:</strong> ${escapeHtml(data.potential_impact)}</div>
+                        <div style="font-size:0.85rem; color:var(--accent-amber); margin-bottom:0.75rem;"><strong>Tactical Advice:</strong> ${escapeHtml(data.negotiation_tactic)}</div>
+                        <div style="background:rgba(56, 189, 248, 0.1); border:1px solid var(--accent-cyan); padding:0.8rem; border-radius:8px;">
+                            <strong style="color:var(--accent-cyan);">✍️ PROPOSED SAFER ALTERNATIVE DRAFT:</strong>
+                            <div style="font-size:0.85rem; margin-top:0.3rem; white-space:pre-wrap;">${escapeHtml(data.safer_alternative)}</div>
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                output.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        async function loadObligations() {
+            switchTab('obligations-tab');
+            const container = document.getElementById('obligations-container');
+            container.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Extracting structured legal obligations...</div>';
+
+            try {
+                const res = await fetch(`${API_HOST}/api/obligations`, { credentials: 'include' });
+                const data = await readApiResponse(res);
+                
+                let rows = data.map(o => `
+                    <tr>
+                        <td><strong>${escapeHtml(o.party)}</strong></td>
+                        <td>${escapeHtml(o.obligation)}</td>
+                        <td><span style="color:var(--accent-amber);">${escapeHtml(o.deadline_frequency)}</span></td>
+                        <td><span style="color:var(--accent-red);">${escapeHtml(o.consequence)}</span></td>
+                        <td><span class="badge-low">Page ${escapeHtml(o.page)}</span></td>
+                    </tr>
+                `).join('');
+
+                container.innerHTML = `
+                    <table class="custom-table">
+                        <thead>
+                            <tr><th>Party</th><th>Obligation / Duty</th><th>Deadline / Frequency</th><th>Consequence / Penalty</th><th>Source</th></tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                `;
+            } catch (err) {
+                container.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        async function handleCompareUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const container = document.getElementById('compare-container');
+            container.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Comparing Contract Versions & Extracting Diff Table...</div>';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(`${API_HOST}/api/compare`, { method: 'POST', body: formData, credentials: 'include' });
+                const data = await readApiResponse(res);
+
+                let rows = data.comparison_table.map(c => `
+                    <tr>
+                        <td><strong>${escapeHtml(c.clause)}</strong></td>
+                        <td style="color:var(--text-secondary);">${escapeHtml(c.v1_text)}</td>
+                        <td style="color:var(--accent-cyan);">${escapeHtml(c.v2_text)}</td>
+                        <td><span class="${riskBadgeClass(c.impact)}">${escapeHtml(c.impact)}</span></td>
+                        <td style="font-size:0.8rem;">${escapeHtml(c.analysis)}</td>
+                    </tr>
+                `).join('');
+
+                container.innerHTML = `
+                    <div style="font-size:0.9rem; margin-bottom:0.75rem; color:var(--accent-cyan);">
+                        Comparing <strong>${escapeHtml(data.doc1_name)}</strong> ↔ <strong>${escapeHtml(data.doc2_name)}</strong> (${escapeHtml(data.total_changes_detected)} Clause Changes Identified)
+                    </div>
+                    <table class="custom-table">
+                        <thead>
+                            <tr><th>Clause</th><th>Version 1 Text</th><th>Version 2 Text</th><th>Impact</th><th>Analysis</th></tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                `;
+            } catch (err) {
+                container.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadApiStatus);
+    </script>
+</body>
+</html>

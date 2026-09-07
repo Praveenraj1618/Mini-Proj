@@ -1,0 +1,16 @@
+# Environment variables & keys
+.env
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Chroma & Vector Store temporary persistence
+.chroma/
+chroma.sqlite3
+
+# Generated Review Reports & Exports
+review_report_*.md
+test_review_report.md
