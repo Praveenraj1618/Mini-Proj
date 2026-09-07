@@ -21,6 +21,19 @@ This project delivers a **Research-Grade Legal AI & Contract Negotiation Platfor
 
 ---
 
+## Second-review reliability update (2.2)
+
+- Executive summaries process **all readable contract pages** in bounded evidence windows, then consolidate cited notes. No first-four-page cutoff remains.
+- Comparison detects text changes across both complete readable contracts before requesting AI impact assessments in small batches. Identical inputs return zero changes without an LLM call; provider failures keep real differences marked `REVIEW REQUIRED` with an explicit failure status.
+- Each uploaded document has a unique Chroma collection. Replacing or evicting a session cleans up its collections. Session requests are serialized; the dashboard clears old panels and rejects stale responses using document IDs and request generations.
+- Classification displays its method instead of an uncalibrated numeric confidence.
+- `.env` chunk size/overlap, retrieval counts, RRF constant and hybrid/reranker switches are wired into runtime behavior. QA no longer clamps evidence to three chunks.
+- Scanned pages can use local Tesseract OCR through PyMuPDF. The **Visuals & OCR** tab displays full-page previews (including vector marks) and offers AI inspection using an explicitly configured vision model.
+
+See [second-review fixes and setup](docs/second_review_fixes.md) for setup, validation, limitations, and the meaning of dense/BM25/union/RRF/reranking. The benchmark table below is a historical committed run; these changes do not establish new retrieval or generated-answer metrics.
+
+---
+
 ## 🔬 Research-Grade 5-Stage Retrieval Ablation Study (`legal_ai_evaluation_msa.pdf`)
 
 | Retrieval Pipeline Stage | Recall@1 | Recall@3 | Recall@5 | Recall@10 | MRR | nDCG@5 | Mean Latency |

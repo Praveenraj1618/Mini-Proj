@@ -1,4 +1,4 @@
-import os
+import uuid
 from typing import List, Tuple, Optional
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
@@ -15,6 +15,7 @@ class LegalVectorStore:
         self.model_name = model_name
         self.persist_directory = persist_directory
         self._embeddings = None
+        self.collection_name = f"legal_{uuid.uuid4().hex}"
         self._vector_db: Optional[Chroma] = None
         self._indexed_count = 0
         self._chunks: List[DocumentChunk] = []
@@ -49,8 +50,11 @@ class LegalVectorStore:
             )
             documents.append(doc)
 
+        self.close()
         self._vector_db = Chroma.from_documents(
             documents=documents,
+            collection_name=self.collection_name,
+            ids=[chunk.chunk_id for chunk in chunks],
             embedding=self.embeddings,
             persist_directory=self.persist_directory,
         )
@@ -82,3 +86,11 @@ class LegalVectorStore:
     def chunks(self) -> List[DocumentChunk]:
         """Returns the chunks used to build this in-memory index."""
         return list(self._chunks)
+
+    def close(self):
+        """Delete only this document's collection; never another reviewer's index."""
+        if self._vector_db is not None:
+            self._vector_db.delete_collection()
+            self._vector_db = None
+        self._indexed_count = 0
+        self._chunks = []

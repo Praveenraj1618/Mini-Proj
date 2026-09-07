@@ -2,7 +2,7 @@ import re
 from typing import Any, List, Tuple, Dict
 from langchain_core.documents import Document
 from rank_bm25 import BM25Okapi
-from config import RERANKER_MODEL
+from config import RERANKER_MODEL, RRF_K, TOP_K_DENSE, TOP_K_BM25, RERANKER_ENABLED
 from core.chunker import DocumentChunk, is_evaluation_artifact_text
 from core.vector_store import LegalVectorStore
 
@@ -101,7 +101,7 @@ class LegalHybridRetriever:
     and Sparse Lexical Search (BM25Okapi) using Reciprocal Rank Fusion (RRF).
     """
 
-    def __init__(self, vector_store: LegalVectorStore, chunks: List[DocumentChunk], rrf_k: int = 60):
+    def __init__(self, vector_store: LegalVectorStore, chunks: List[DocumentChunk], rrf_k: int = RRF_K):
         self.vector_store = vector_store
         self.chunks = chunks
         self.bm25_retriever = BM25Retriever(chunks)
@@ -115,9 +115,9 @@ class LegalHybridRetriever:
         self,
         query: str,
         top_k: int = 5,
-        dense_k: int = 10,
-        bm25_k: int = 10,
-        use_reranker: bool = True,
+        dense_k: int = TOP_K_DENSE,
+        bm25_k: int = TOP_K_BM25,
+        use_reranker: bool = RERANKER_ENABLED,
     ) -> List[Document]:
         """
         Executes hybrid retrieval:

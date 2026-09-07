@@ -26,27 +26,36 @@ TOP_K_DENSE = int(os.getenv("TOP_K_DENSE", "10"))
 TOP_K_BM25 = int(os.getenv("TOP_K_BM25", "10"))
 RRF_K = int(os.getenv("RRF_K", "60"))
 RERANKER_MODEL = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+RERANKER_ENABLED = os.getenv("RERANKER_ENABLED", "true").lower() == "true"
+SUMMARY_CONTEXT_CHARS = int(os.getenv("SUMMARY_CONTEXT_CHARS", "12000"))
+OCR_ENABLED = os.getenv("OCR_ENABLED", "true").lower() == "true"
+OCR_LANGUAGE = os.getenv("OCR_LANGUAGE", "eng")
+OCR_DPI = int(os.getenv("OCR_DPI", "200"))
+OCR_TESSDATA = os.getenv("OCR_TESSDATA") or None
+MAX_VISUAL_PAGES = int(os.getenv("MAX_VISUAL_PAGES", "5"))
 MAX_UPLOAD_MB = int(os.getenv("MAX_UPLOAD_MB", "20"))
 LLM_REQUEST_TIMEOUT = float(os.getenv("LLM_REQUEST_TIMEOUT", "45"))
 
 
-def configured_llm_providers() -> List[str]:
+def configured_llm_providers(vision: bool = False) -> List[str]:
     """Return configured providers in the order in which they will be tried."""
     if os.getenv("LEGAL_AI_OFFLINE", "false").lower() == "true":
         return []
 
-    available = {
-        "xai": bool(os.getenv("XAI_API_KEY")),
-        "openai": bool(os.getenv("OPENAI_API_KEY")),
-        "groq": bool(os.getenv("GROQ_API_KEY")),
-        "gemini": bool(os.getenv("GEMINI_API_KEY")),
-    }
+    available = {}
+    for name in ("xai", "openai", "groq", "gemini"):
+        key = os.getenv(f"{name.upper()}_API_KEY", "").strip()
+        available[name] = bool(key) and not key.lower().startswith("your_")
     requested_order = [
         item.strip().lower()
         for item in os.getenv("LLM_PROVIDER_ORDER", "xai,openai,groq,gemini").split(",")
         if item.strip()
     ]
-    return [name for name in requested_order if available.get(name)]
+    return [
+        name for name in requested_order
+        if available.get(name)
+        and (not vision or os.getenv(f"{name.upper()}_VISION_MODEL", "").strip())
+    ]
 
 
 def get_llm_candidates(
@@ -56,12 +65,12 @@ def get_llm_candidates(
     """Build configured LLM clients in failover order."""
     candidates: List[Tuple[str, ChatOpenAI]] = []
 
-    for provider in configured_llm_providers():
+    for provider in configured_llm_providers(vision=vision):
         if provider == "xai":
             candidates.append((
                 "xAI",
                 ChatOpenAI(
-                    model=os.getenv("XAI_MODEL", "grok-4"),
+                    model=os.environ["XAI_VISION_MODEL"] if vision else os.getenv("XAI_MODEL", "grok-4"),
                     api_key=os.environ["XAI_API_KEY"],
                     base_url="https://api.x.ai/v1",
                     temperature=temperature,
@@ -73,7 +82,7 @@ def get_llm_candidates(
             candidates.append((
                 "OpenAI",
                 ChatOpenAI(
-                    model=os.getenv("OPENAI_MODEL", "gpt-4o"),
+                    model=os.environ["OPENAI_VISION_MODEL"] if vision else os.getenv("OPENAI_MODEL", "gpt-4o"),
                     api_key=os.environ["OPENAI_API_KEY"],
                     temperature=temperature,
                     max_retries=1,
@@ -81,7 +90,7 @@ def get_llm_candidates(
                 ),
             ))
         elif provider == "groq":
-            model_name = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+            model_name = os.environ["GROQ_VISION_MODEL"] if vision else os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
             default_effort = "none" if model_name.startswith("qwen/") else "low"
             candidates.append((
                 "Groq",
@@ -90,8 +99,10 @@ def get_llm_candidates(
                     api_key=os.environ["GROQ_API_KEY"],
                     base_url="https://api.groq.com/openai/v1",
                     temperature=temperature,
-                    reasoning_effort=os.getenv("GROQ_REASONING_EFFORT", default_effort),
-                    extra_body={"include_reasoning": False},
+                    **({} if vision else {
+                        "reasoning_effort": os.getenv("GROQ_REASONING_EFFORT", default_effort),
+                        "extra_body": {"include_reasoning": False},
+                    }),
                     max_retries=1,
                     request_timeout=LLM_REQUEST_TIMEOUT,
                 ),
@@ -100,7 +111,7 @@ def get_llm_candidates(
             candidates.append((
                 "Gemini",
                 ChatOpenAI(
-                    model=os.getenv("GEMINI_MODEL", "gemini-3.7-flash"),
+                    model=os.environ["GEMINI_VISION_MODEL"] if vision else os.getenv("GEMINI_MODEL", "gemini-3.7-flash"),
                     api_key=os.environ["GEMINI_API_KEY"],
                     base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
                     temperature=temperature,
@@ -135,3 +146,11 @@ def get_llm(vision: bool = False, temperature: float = 0.1):
 def check_api_key_configured() -> bool:
     """Returns True if any supported LLM API key is configured."""
     return bool(configured_llm_providers())
+
+
+if CHUNK_SIZE <= 0 or not 0 <= CHUNK_OVERLAP < CHUNK_SIZE:
+    raise ValueError("CHUNK_SIZE must be positive and CHUNK_OVERLAP must be smaller than CHUNK_SIZE.")
+if min(RETRIEVAL_TOP_K, TOP_K_DENSE, TOP_K_BM25, RRF_K, OCR_DPI, MAX_VISUAL_PAGES) <= 0:
+    raise ValueError("Retrieval sizes, RRF_K, OCR_DPI and MAX_VISUAL_PAGES must be positive.")
+if SUMMARY_CONTEXT_CHARS < 2000:
+    raise ValueError("SUMMARY_CONTEXT_CHARS must be at least 2000.")
