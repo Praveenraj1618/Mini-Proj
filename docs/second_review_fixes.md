@@ -112,3 +112,29 @@ Frontend tests execute the actual inline JavaScript with a small DOM harness, ch
 - Scans with poor print quality, handwriting, rotation, complex tables, or missing language packs may need manual correction.
 - State is temporary. Unique local collections fix isolation; durable history, user authentication, and cloud storage are separate work.
 - Larger documents and many changes require more hosted-model calls; this improves coverage at the cost of latency and usage.
+
+## Diagnosing AI failures and cancelled visual requests
+
+A `200` access-log entry means the application returned a response. It does not certify that the hosted model succeeded: an operation can return evidence-only fallback output or an analysis failure in that response.
+
+The status badge now says providers are **configured, not verified**. Use **Check AI connection** for a minimal explicit generation request (`POST /api/llm/check`, JSON `{}`). It uses no contract content. A successful result proves that this small request worked, not that every longer request will fit your provider's limits.
+
+Q&A and negotiation failures now include a safe diagnostic category and HTTP status when available. Obligation extraction visibly labels rule-based fallback, including when no rows were extracted. The UI requests `/api/obligations?include_status=1`; the original endpoint still returns the legacy array for existing clients.
+
+| Diagnostic | Action |
+|---|---|
+| `authentication` / HTTP 401 | Check the local API key; do not paste it into chat or commit it. |
+| `permission_denied` / HTTP 403 | Check account access to the chosen model. |
+| `model_unavailable` / HTTP 404 | Check the model ID, availability and provider access. |
+| `rate_limit` / HTTP 429 | Check request/token/quota limits; wait or configure a fallback provider. |
+| `invalid_request` / HTTP 400 or 422 | Check model-specific parameters and token limits. |
+| `context_limit` | Reduce context size to the provider's supported limit. |
+| `timeout` / `connection` | Check connectivity/proxy settings or retry later. |
+| `empty_response` | The request returned no answer text; inspect reasoning settings and output budget. |
+| `invalid_response` | Text was returned but structured output could not be parsed. |
+
+Only allowlisted descriptions are returned/logged. Provider exception bodies, request content, and keys are never echoed. The backend logs the same safe diagnostic, so a provider failure no longer disappears behind a generic message.
+
+Groq's optional reasoning parameters are now sent only when explicitly configured. If your current model rejects them, remove `GROQ_REASONING_EFFORT` and `GROQ_INCLUDE_REASONING` from `.env`, restart, and run the connection check. A pre-existing `.env` is not overwritten by changes to `.env.example`. Consult [Groq's model-specific reasoning documentation](https://console.groq.com/docs/reasoning) and [model availability](https://console.groq.com/docs/models) before setting these parameters.
+
+`ConnectionAbortedError` / Windows error 10053 while writing a response means the client connection closed. This can happen when a superseded browser request is intentionally aborted. The response writer now stops after a disconnect; it does not attempt to write a second HTTP 500 response to the closed connection. Repeated visual-analysis clicks are disabled while the current analysis is pending. Disconnect handling does not fix or explain a separate Groq generation failure.

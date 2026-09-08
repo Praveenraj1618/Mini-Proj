@@ -47,7 +47,7 @@
         .logo-title { font-weight: 800; font-size: 1.25rem; background: linear-gradient(90deg, #38bdf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .logo-sub { font-size: 0.75rem; color: var(--text-secondary); letter-spacing: 0.5px; }
 
-        .status-badge {
+        .status-badge { max-width: 520px; overflow-wrap: anywhere;
             background: rgba(56, 189, 248, 0.1);
             border: 1px solid rgba(56, 189, 248, 0.3);
             color: var(--accent-cyan);
@@ -149,7 +149,8 @@
             <div style="background: rgba(251, 191, 36, 0.1); border: 1px solid var(--accent-amber); color: var(--accent-amber); padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
                 ⚠️ AI Output for Legal Review (Not Legal Advice)
             </div>
-            <div class="status-badge" id="llm-status">⚡ REST API: http://localhost:8080</div>
+            <div class="status-badge" id="llm-status">API connection not checked</div>
+            <button class="tab-btn" id="check-ai-button" onclick="checkAIConnection()">Check AI connection</button>
         </div>
     </header>
 
@@ -273,7 +274,7 @@
                     <div class="glass-card">
                         <div class="card-header"><span class="card-title">Visual Pages & OCR</span></div>
                         <p style="margin-bottom:1rem;">Inspect page previews and request AI descriptions of tables, signatures and stamps. Descriptions do not authenticate signatures.</p>
-                        <button class="btn-primary" onclick="analyzeVisuals()">Analyze Visual Pages</button>
+                        <button class="btn-primary" id="analyze-visuals-button" onclick="analyzeVisuals()">Analyze Visual Pages</button>
                         <div id="visuals-container" style="margin-top:1rem;">Upload a contract to inspect visual pages.</div>
                         <div id="visual-analysis-output" style="margin-top:1rem;"></div>
                     </div>
@@ -317,6 +318,7 @@
             ['qa-input', 'clause-input', 'compare-file-2'].forEach(id => { document.getElementById(id).value = ''; });
             document.getElementById('doc-stats').classList.add('hidden');
             document.getElementById('upload-notices').textContent = '';
+            document.getElementById('analyze-visuals-button').disabled = false;
         }
 
         function requireDocument() {
@@ -344,6 +346,35 @@
             }
         }
 
+
+        function diagnosticHtml(diagnostic) {
+            if (!diagnostic) return '';
+            const message = typeof diagnostic === 'string' ? diagnostic : diagnostic.message;
+            return message ? `<div class="diagnostic" role="status">${escapeHtml(message)}</div>` : '';
+        }
+
+        async function checkAIConnection() {
+            const button = document.getElementById('check-ai-button');
+            if (button.disabled) return;
+            button.disabled = true;
+            const badge = document.getElementById('llm-status');
+            badge.textContent = 'Testing AI generation...';
+            try {
+                // A minimal explicit check, independent of contract uploads.
+                const response = await fetch(`${API_HOST}/api/llm/check`, {
+                    method: 'POST', credentials: 'include',
+                    headers: {'Content-Type':'application/json'}, body: '{}'
+                });
+                const data = await readApiResponse(response);
+                badge.textContent = data.status === 'ready'
+                    ? `AI check passed • ${data.message}`
+                    : `AI check failed • ${data.diagnostic?.message || 'See backend diagnostics.'}`;
+            } catch (error) {
+                badge.textContent = `AI check failed • ${error.message}`;
+            } finally {
+                button.disabled = false;
+            }
+        }
 
         function escapeHtml(value) {
             return String(value ?? '')
@@ -380,7 +411,7 @@
                     ? data.llm_providers.map(name => String(name).toUpperCase()).join(' → ')
                     : '';
                 badge.innerText = data.llm_configured
-                    ? `⚡ API Online • LLM: ${providers || 'Configured'}`
+                    ? `API Online • Configured: ${providers || 'LLM'} (not verified)`
                     : '⚠️ API Online • No LLM Key';
             } catch (_) {
                 if (_.name === 'AbortError') return;
@@ -552,6 +583,7 @@
                     <div style="background:rgba(15, 23, 42, 0.6); padding:1rem; border-radius:10px; border:1px solid var(--card-border);">
                         <strong>Answer:</strong><br>${escapeHtml(data.answer).replace(/\n/g, '<br>')}
                     </div>
+                    ${diagnosticHtml(data.diagnostic)}
                     <div style="margin-top:1rem;"><strong>Retrieved Source Evidence:</strong>${evidenceHtml}</div>
                 `;
             } catch (err) {
@@ -582,6 +614,7 @@
                             <span class="heatmap-cat">Negotiation Risk Evaluation</span>
                             <span class="${riskBadgeClass(data.risk_level)}">${escapeHtml(data.risk_level)}</span>
                         </div>
+                        ${diagnosticHtml(data.diagnostic)}
                         <div style="font-size:0.85rem; margin-bottom:0.5rem;"><strong>Assessment:</strong> ${escapeHtml(data.assessment || data.analysis)}</div>
                         <div style="font-size:0.85rem; margin-bottom:0.5rem;"><strong>Potential Impact:</strong> ${escapeHtml(data.potential_impact)}</div>
                         <div style="font-size:0.85rem; color:var(--accent-amber); margin-bottom:0.75rem;"><strong>Tactical Advice:</strong> ${escapeHtml(data.negotiation_tactic)}</div>
@@ -604,10 +637,11 @@
             container.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Extracting structured legal obligations...</div>';
 
             try {
-                const res = await scopedFetch(`${API_HOST}/api/obligations`, { credentials: 'include' });
+                const res = await scopedFetch(`${API_HOST}/api/obligations?include_status=1`, { credentials: 'include' });
                 const data = await readApiResponse(res);
                 
-                let rows = data.map(o => `
+                const items = Array.isArray(data) ? data : data.items;
+                let rows = items.map(o => `
                     <tr>
                         <td><strong>${escapeHtml(o.party)}</strong></td>
                         <td>${escapeHtml(o.obligation)}</td>
@@ -618,6 +652,8 @@
                 `).join('');
 
                 container.innerHTML = `
+                    ${data.mode === 'rule_based' ? '<div class="diagnostic" role="status">AI extraction was unavailable. Showing rule-based candidate sentences; party, deadline and consequence fields may be incomplete.</div>' : ''}
+                    ${diagnosticHtml(data.diagnostic)}
                     <table class="custom-table">
                         <thead>
                             <tr><th>Party</th><th>Obligation / Duty</th><th>Deadline / Frequency</th><th>Consequence / Penalty</th><th>Source</th></tr>
@@ -704,6 +740,10 @@
 
         async function analyzeVisuals() {
             if (!requireDocument()) return;
+            const button = document.getElementById('analyze-visuals-button');
+            if (button.disabled) return;
+            button.disabled = true;
+            const epoch = documentEpoch;
             const container = document.getElementById('visual-analysis-output');
             container.textContent = 'Analyzing visual pages...';
             try {
@@ -711,6 +751,8 @@
                 container.innerHTML = data.results.map(item => `<div class="heatmap-item"><strong>${item.page ? 'Page ' + escapeHtml(item.page) : 'Visual analysis'} — ${escapeHtml(item.status)}</strong><p style="white-space:pre-wrap;">${escapeHtml(item.analysis)}</p></div>`).join('');
             } catch (err) {
                 if (err.name !== 'AbortError') container.textContent = err.message;
+            } finally {
+                if (epoch === documentEpoch) button.disabled = false;
             }
         }
 

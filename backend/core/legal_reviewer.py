@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Optional
 from langchain_core.messages import HumanMessage, SystemMessage
 from config import (get_llm, get_llm_candidates, RETRIEVAL_TOP_K, check_api_key_configured,
                     HYBRID_RETRIEVAL_ENABLED, SUMMARY_CONTEXT_CHARS)
+from core.llm_diagnostics import LLMProviderError, provider_diagnostic, record_failure
 from core.document_analysis import contract_pages, evidence_windows, contract_changes
 from core.document_loader import LoadedDocument, ExtractedImage
 from core.vector_store import LegalVectorStore
@@ -90,6 +91,8 @@ class LegalReviewer:
         self._llm_candidates = None
         self._vision_llm_candidates = None
         self._last_llm_diagnostic = None
+        self._last_provider_error = None
+        self.obligation_status = {"mode": "not_run", "diagnostic": None}
         self._cached_summary = None
         self._cached_risk_analysis = None
         self._cached_heatmap = None
@@ -156,17 +159,36 @@ class LegalReviewer:
             return []
         return self.vector_store.similarity_search(query, k=top_k)
 
+    def _failure_details(self, error):
+        diagnostic = getattr(error, "diagnostic", None)
+        if diagnostic is None:
+            diagnostic = provider_diagnostic("AI service", error)
+            record_failure(diagnostic)
+        self._last_provider_error = diagnostic
+        self._last_llm_diagnostic = diagnostic["message"]
+        return diagnostic
+
     def _invoke_llm(self, messages, max_tokens: int = 700, vision: bool = False) -> str:
         """Invoke configured providers with bounded output, retry, and failover."""
         failures = []
-        candidates = self._candidate_clients(vision=vision)
+        diagnostics = []
+        self._last_provider_error = None
+        self._last_llm_diagnostic = None
+        try:
+            candidates = self._candidate_clients(vision=vision)
+        except Exception as error:
+            raise LLMProviderError(self._failure_details(error)) from None
         if not candidates:
-            raise RuntimeError("No supported LLM provider is configured.")
+            diagnostic = {"provider": "AI service", "category": "not_configured", "http_status": None,
+                          "message": "No eligible AI provider is configured, or offline mode is enabled."}
+            self._last_llm_diagnostic = diagnostic["message"]
+            self._last_provider_error = diagnostic
+            raise LLMProviderError(diagnostic)
 
         for provider, base_client in candidates:
-            client = base_client.bind(max_tokens=max_tokens)
             for attempt in range(2):
                 try:
+                    client = base_client.bind(max_tokens=max_tokens)
                     response = self._message_text(client.invoke(messages))
                     if not response:
                         raise ValueError("LLM returned an empty response.")
@@ -189,13 +211,16 @@ class LegalReviewer:
                         time.sleep(min(max(wait_seconds + 0.5, 1.0), 5.0))
                         continue
                     failures.append((provider, type(error).__name__))
+                    diagnostic = provider_diagnostic(provider, error)
+                    diagnostics.append(diagnostic)
+                    record_failure(diagnostic)
                     break
 
-        diagnostic = ", ".join(
-            f"{provider} ({error_type})" for provider, error_type in failures
-        )
-        self._last_llm_diagnostic = f"All configured providers failed: {diagnostic}."
-        raise RuntimeError(self._last_llm_diagnostic)
+        diagnostic = dict(diagnostics[-1])
+        diagnostic["attempts"] = diagnostics
+        self._last_provider_error = diagnostic
+        self._last_llm_diagnostic = " ".join(item["message"] for item in diagnostics)
+        raise LLMProviderError(diagnostic)
 
     def generate_executive_summary(self) -> str:
         """Summarize every contract page through bounded evidence windows."""
@@ -381,19 +406,15 @@ Instructions:
         
         try:
             answer = self._invoke_llm(messages, max_tokens=1200)
-        except Exception as e:
-            if "429" in str(e) or "rate_limit" in str(e).lower():
-                answer = (
-                    "The AI service is temporarily rate-limited. Please wait about 20 seconds and try again. "
-                    "The retrieved source excerpts below are still available."
-                )
-            else:
-                answer = (
-                    "The AI service could not synthesize an answer. "
-                    "Please inspect the retrieved source excerpts below and try again."
-                )
+            status, diagnostic = "generated", None
+        except Exception as error:
+            diagnostic = self._failure_details(error)
+            status = "analysis_failed"
+            answer = "AI answer generation failed. The retrieved source excerpts remain available."
 
         return {
+            "status": status,
+            "diagnostic": diagnostic,
             "answer": answer,
             "citations": sorted(list(citations)),
             "sources": sources,
@@ -718,7 +739,9 @@ Produce a structured negotiation analysis JSON with this structure:
             item["legal_disclaimer"] = disclaimer
             return item
         except Exception as e:
+            diagnostic = self._failure_details(e)
             return {
+                "diagnostic": diagnostic,
                 "status": "analysis_failed",
                 "risk_level": "ANALYSIS FAILED",
                 "clause_evaluated": clause_text,
@@ -737,7 +760,9 @@ Produce a structured negotiation analysis JSON with this structure:
         docs = self._retrieve("shall must agree obligation payment notice fee deliver terminate", top_k=6)
         ctx = self._format_context(docs)
 
+        self.obligation_status = {"mode": "rule_based", "diagnostic": None}
         if not check_api_key_configured():
+            self.obligation_status["diagnostic"] = {"message": "AI extraction is unavailable; showing rule-based candidate sentences."}
             return self._extract_obligations_deterministically(docs)
 
         prompt = f"""
@@ -762,8 +787,13 @@ Respond strictly with a JSON list of objects matching this format:
                 [SystemMessage(content=LEGAL_SYSTEM_PROMPT), HumanMessage(content=prompt)],
                 max_tokens=1200,
             )
-            return parse_llm_json_array(res)
-        except Exception:
+            items = parse_llm_json_array(res)
+            if any(not isinstance(item, dict) for item in items):
+                raise ValueError("Obligation output contains invalid rows.")
+            self.obligation_status = {"mode": "ai", "diagnostic": None}
+            return items
+        except Exception as error:
+            self.obligation_status = {"mode": "rule_based", "diagnostic": self._failure_details(error)}
             return self._extract_obligations_deterministically(docs)
 
     @staticmethod

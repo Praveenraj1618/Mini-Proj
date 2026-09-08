@@ -91,7 +91,14 @@ def get_llm_candidates(
             ))
         elif provider == "groq":
             model_name = os.environ["GROQ_VISION_MODEL"] if vision else os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
-            default_effort = "none" if model_name.startswith("qwen/") else "low"
+            options = {}
+            if not vision:
+                effort = os.getenv("GROQ_REASONING_EFFORT", "").strip()
+                include = os.getenv("GROQ_INCLUDE_REASONING", "").strip().lower()
+                if effort:
+                    options["reasoning_effort"] = effort
+                if include in {"true", "false"}:
+                    options["extra_body"] = {"include_reasoning": include == "true"}
             candidates.append((
                 "Groq",
                 ChatOpenAI(
@@ -99,10 +106,7 @@ def get_llm_candidates(
                     api_key=os.environ["GROQ_API_KEY"],
                     base_url="https://api.groq.com/openai/v1",
                     temperature=temperature,
-                    **({} if vision else {
-                        "reasoning_effort": os.getenv("GROQ_REASONING_EFFORT", default_effort),
-                        "extra_body": {"include_reasoning": False},
-                    }),
+                    **options,
                     max_retries=1,
                     request_timeout=LLM_REQUEST_TIMEOUT,
                 ),
