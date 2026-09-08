@@ -99,7 +99,7 @@
         .stat-label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
         .stat-val { font-size: 1.1rem; font-weight: 700; color: var(--accent-cyan); margin-top: 0.2rem; }
 
-        .tab-bar { display: flex; gap: 0.5rem; background: rgba(15, 23, 42, 0.8); padding: 0.35rem; border-radius: 12px; border: 1px solid var(--card-border); margin-bottom: 1.5rem; }
+        .tab-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; background: rgba(15, 23, 42, 0.8); padding: 0.35rem; border-radius: 12px; border: 1px solid var(--card-border); margin-bottom: 1.5rem; }
         .tab-btn { flex: 1; padding: 0.65rem 1rem; border: none; background: transparent; color: var(--text-secondary); font-weight: 600; font-size: 0.85rem; border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center; }
         .tab-btn.active { background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(192, 132, 252, 0.2)); color: var(--text-primary); border: 1px solid rgba(56, 189, 248, 0.3); }
 
@@ -163,11 +163,12 @@
                     </div>
                     <div class="dropzone" id="dropzone-box" onclick="document.getElementById('file-input').click()">
                         <div class="dropzone-icon">📄</div>
-                        <div class="dropzone-text">Click or Drag PDF Contract</div>
+                        <div class="dropzone-text">Click to Upload PDF Contract</div>
                         <div class="dropzone-sub">Supports NDAs, MSAs, Leases & Commercial Contracts</div>
                         <input type="file" id="file-input" accept=".pdf" class="hidden" onchange="handleFileUpload(event)">
                     </div>
 
+                    <div id="upload-notices" role="status" style="margin-top:0.8rem; white-space:pre-wrap;"></div>
                     <div id="loading-spinner" class="hidden" style="text-align: center; margin-top: 1rem;">
                         <span class="spinner"></span>
                         <div style="font-size: 0.8rem; color: var(--accent-cyan); margin-top: 0.5rem;">Parsing PDF & Building Hybrid Vector Index...</div>
@@ -200,6 +201,7 @@
                     <button class="tab-btn" data-tab="qa-tab" onclick="switchTab('qa-tab', this)">💬 Grounded Legal Q&A</button>
                     <button class="tab-btn" data-tab="negotiate-tab" onclick="switchTab('negotiate-tab', this)">⚖️ Negotiation Assistant</button>
                     <button class="tab-btn" data-tab="obligations-tab" onclick="switchTab('obligations-tab', this)">📅 Obligations</button>
+                    <button class="tab-btn" data-tab="visuals-tab" onclick="loadVisuals()">Visuals & OCR</button>
                     <button class="tab-btn" data-tab="compare-tab" onclick="switchTab('compare-tab', this)">🔄 Contract Comparison</button>
                 </div>
 
@@ -267,6 +269,15 @@
                     </div>
                 </div>
 
+                <div id="visuals-tab" class="tab-content hidden">
+                    <div class="glass-card">
+                        <div class="card-header"><span class="card-title">Visual Pages & OCR</span></div>
+                        <p style="margin-bottom:1rem;">Inspect page previews and request AI descriptions of tables, signatures and stamps. Descriptions do not authenticate signatures.</p>
+                        <button class="btn-primary" onclick="analyzeVisuals()">Analyze Visual Pages</button>
+                        <div id="visuals-container" style="margin-top:1rem;">Upload a contract to inspect visual pages.</div>
+                        <div id="visual-analysis-output" style="margin-top:1rem;"></div>
+                    </div>
+                </div>
                 <div id="compare-tab" class="tab-content hidden">
                     <div class="glass-card">
                         <div class="card-header">
@@ -290,6 +301,49 @@
 
     <script>
         const API_HOST = '';
+        let documentEpoch = 0;
+        let documentId = null;
+        let isUploading = false;
+        const pendingRequests = new Map();
+
+        function resetDocumentViews() {
+            documentEpoch += 1;
+            documentId = null;
+            pendingRequests.forEach(controller => controller.abort());
+            pendingRequests.clear();
+            ['heatmap-container', 'summary-container', 'qa-output', 'negotiate-output',
+             'obligations-container', 'compare-container', 'visuals-container', 'visual-analysis-output']
+                .forEach(id => { document.getElementById(id).textContent = 'Upload a contract to begin.'; });
+            ['qa-input', 'clause-input', 'compare-file-2'].forEach(id => { document.getElementById(id).value = ''; });
+            document.getElementById('doc-stats').classList.add('hidden');
+            document.getElementById('upload-notices').textContent = '';
+        }
+
+        function requireDocument() {
+            if (isUploading) return false;
+            if (!documentId) { alert('Upload a contract first.'); return false; }
+            return true;
+        }
+
+        async function scopedFetch(url, options = {}) {
+            const epoch = documentEpoch;
+            pendingRequests.get(url)?.abort();
+            const controller = new AbortController();
+            pendingRequests.set(url, controller);
+            const headers = new Headers(options.headers || {});
+            if (documentId && !url.endsWith('/api/upload')) headers.set('X-Document-Id', documentId);
+            const current = () => epoch === documentEpoch && pendingRequests.get(url) === controller && !controller.signal.aborted;
+            try {
+                const response = await fetch(url, {...options, headers, signal: controller.signal});
+                response.isCurrentDocumentRequest = current;
+                if (!current()) throw new DOMException('Superseded request', 'AbortError');
+                return response;
+            } catch (error) {
+                if (!current()) throw new DOMException('Superseded request', 'AbortError');
+                throw error;
+            }
+        }
+
 
         function escapeHtml(value) {
             return String(value ?? '')
@@ -305,7 +359,11 @@
             try {
                 data = await response.json();
             } catch (_) {
+                if (response.isCurrentDocumentRequest && !response.isCurrentDocumentRequest()) throw new DOMException('Superseded request', 'AbortError');
                 throw new Error(`Server returned HTTP ${response.status}.`);
+            }
+            if (response.isCurrentDocumentRequest && !response.isCurrentDocumentRequest()) {
+                throw new DOMException('Superseded request', 'AbortError');
             }
             if (!response.ok) {
                 throw new Error(data.error || `Request failed with HTTP ${response.status}.`);
@@ -316,7 +374,7 @@
         async function loadApiStatus() {
             const badge = document.getElementById('llm-status');
             try {
-                const response = await fetch(`${API_HOST}/api/status`, { credentials: 'include' });
+                const response = await scopedFetch(`${API_HOST}/api/status`, { credentials: 'include' });
                 const data = await readApiResponse(response);
                 const providers = Array.isArray(data.llm_providers)
                     ? data.llm_providers.map(name => String(name).toUpperCase()).join(' → ')
@@ -325,6 +383,7 @@
                     ? `⚡ API Online • LLM: ${providers || 'Configured'}`
                     : '⚠️ API Online • No LLM Key';
             } catch (_) {
+                if (_.name === 'AbortError') return;
                 badge.innerText = '❌ REST API Offline';
                 badge.style.color = 'var(--accent-red)';
                 badge.style.borderColor = 'var(--accent-red)';
@@ -351,18 +410,26 @@
 
         async function handleFileUpload(event) {
             const file = event.target.files[0];
-            if (!file) return;
+            if (!file || isUploading) return;
+            resetDocumentViews();
+            isUploading = true;
+            document.getElementById('file-input').disabled = true;
 
             document.getElementById('loading-spinner').classList.remove('hidden');
             const formData = new FormData();
             formData.append('file', file);
 
             try {
-                const res = await fetch(`${API_HOST}/api/upload`, { method: 'POST', body: formData, credentials: 'include' });
+                const res = await scopedFetch(`${API_HOST}/api/upload`, { method: 'POST', body: formData, credentials: 'include' });
                 const data = await readApiResponse(res);
                 document.getElementById('loading-spinner').classList.add('hidden');
 
                 if (data.status === 'success') {
+                    documentId = data.document_id;
+                    isUploading = false;
+                    const notices = [...(data.warnings || [])];
+                    if (data.ocr_pages?.length) notices.unshift(`OCR used on page(s): ${data.ocr_pages.join(', ')}.`);
+                    document.getElementById('upload-notices').textContent = notices.join('\n');
                     document.getElementById('doc-stats').classList.remove('hidden');
                     document.getElementById('stat-type').innerText = data.doc_type;
                     document.getElementById('stat-pages').innerText = data.pages;
@@ -373,17 +440,25 @@
                     alert('Error loading document: ' + (data.error || 'Unknown error'));
                 }
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 document.getElementById('loading-spinner').classList.add('hidden');
                 alert('Upload failed: ' + err.message);
+            } finally {
+                isUploading = false;
+                document.getElementById('file-input').disabled = false;
+                document.getElementById('file-input').value = '';
+                document.getElementById('loading-spinner').classList.add('hidden');
             }
         }
 
         async function loadHeatmap() {
+            if (!requireDocument()) return;
+            switchTab('heatmap-tab');
             const container = document.getElementById('heatmap-container');
             container.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Generating Clause Risk Heatmap...</div>';
             
             try {
-                const res = await fetch(`${API_HOST}/api/heatmap`, { credentials: 'include' });
+                const res = await scopedFetch(`${API_HOST}/api/heatmap`, { credentials: 'include' });
                 const data = await readApiResponse(res);
                 container.innerHTML = '';
 
@@ -408,26 +483,25 @@
                     container.appendChild(card);
                 });
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 container.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(err.message)}</div>`;
             }
         }
 
         async function loadSummary() {
+            if (!requireDocument()) return;
             switchTab('summary-tab');
             const container = document.getElementById('summary-container');
             container.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Generating grounded executive summary...</div>';
 
             try {
-                const response = await fetch(`${API_HOST}/api/summary`, { credentials: 'include' });
+                const response = await scopedFetch(`${API_HOST}/api/summary`, { credentials: 'include' });
                 const data = await readApiResponse(response);
                 const classification = data.classification || {};
                 const focusAreas = Array.isArray(classification.target_risk_focus)
                     ? classification.target_risk_focus.join(', ')
                     : 'Not specified';
-                const confidence = Number(classification.confidence);
-                const confidenceText = Number.isFinite(confidence)
-                    ? `${Math.round(confidence * 100)}%`
-                    : 'Not available';
+                const classificationMethod = classification.source || 'Not specified';
                 const diagnosticHtml = data.diagnostic
                     ? `<div class="diagnostic"><strong>Provider diagnostic:</strong> ${escapeHtml(data.diagnostic)}</div>`
                     : '';
@@ -435,25 +509,28 @@
                 container.innerHTML = `
                     <div class="summary-grid">
                         <div class="stat-box"><div class="stat-label">Document Type</div><div class="stat-val" style="font-size:0.9rem;">${escapeHtml(classification.doc_type || 'Legal Agreement')}</div></div>
-                        <div class="stat-box"><div class="stat-label">Classification Confidence</div><div class="stat-val">${escapeHtml(confidenceText)}</div></div>
+                        <div class="stat-box"><div class="stat-label">Classification Method</div><div class="stat-val">${escapeHtml(classificationMethod)}</div></div>
                         <div class="stat-box" style="grid-column:1 / -1;"><div class="stat-label">Priority Review Areas</div><div style="margin-top:0.35rem; color:var(--text-primary);">${escapeHtml(focusAreas)}</div></div>
                     </div>
+                    <p style="margin-bottom:0.75rem;">${escapeHtml(classification.confidence_note || 'Classification probability has not been calibrated.')}</p>
                     <div class="summary-text">${escapeHtml(data.summary || 'No summary was returned.')}</div>
                     ${diagnosticHtml}
                 `;
             } catch (error) {
+                if (error.name === 'AbortError') return;
                 container.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(error.message)}</div>`;
             }
         }
 
         async function executeQA() {
+            if (!requireDocument()) return;
             const query = document.getElementById('qa-input').value.trim();
             if (!query) return;
             const output = document.getElementById('qa-output');
             output.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Searching hybrid index & generating grounded answer...</div>';
 
             try {
-                const res = await fetch(`${API_HOST}/api/qa`, {
+                const res = await scopedFetch(`${API_HOST}/api/qa`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({question: query}),
@@ -478,18 +555,20 @@
                     <div style="margin-top:1rem;"><strong>Retrieved Source Evidence:</strong>${evidenceHtml}</div>
                 `;
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 output.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(err.message)}</div>`;
             }
         }
 
         async function evaluateNegotiation() {
+            if (isUploading) return;
             const text = document.getElementById('clause-input').value.trim();
             if (!text) return;
             const output = document.getElementById('negotiate-output');
             output.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Analyzing legal exposure & drafting safer alternative...</div>';
 
             try {
-                const res = await fetch(`${API_HOST}/api/negotiate`, {
+                const res = await scopedFetch(`${API_HOST}/api/negotiate`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({clause: text}),
@@ -513,17 +592,19 @@
                     </div>
                 `;
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 output.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(err.message)}</div>`;
             }
         }
 
         async function loadObligations() {
+            if (!requireDocument()) return;
             switchTab('obligations-tab');
             const container = document.getElementById('obligations-container');
             container.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Extracting structured legal obligations...</div>';
 
             try {
-                const res = await fetch(`${API_HOST}/api/obligations`, { credentials: 'include' });
+                const res = await scopedFetch(`${API_HOST}/api/obligations`, { credentials: 'include' });
                 const data = await readApiResponse(res);
                 
                 let rows = data.map(o => `
@@ -545,11 +626,13 @@
                     </table>
                 `;
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 container.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(err.message)}</div>`;
             }
         }
 
         async function handleCompareUpload(event) {
+            if (!requireDocument()) return;
             const file = event.target.files[0];
             if (!file) return;
 
@@ -560,14 +643,14 @@
             formData.append('file', file);
 
             try {
-                const res = await fetch(`${API_HOST}/api/compare`, { method: 'POST', body: formData, credentials: 'include' });
+                const res = await scopedFetch(`${API_HOST}/api/compare`, { method: 'POST', body: formData, credentials: 'include' });
                 const data = await readApiResponse(res);
 
                 let rows = data.comparison_table.map(c => `
                     <tr>
                         <td><strong>${escapeHtml(c.clause)}</strong></td>
-                        <td style="color:var(--text-secondary);">${escapeHtml(c.v1_text)}</td>
-                        <td style="color:var(--accent-cyan);">${escapeHtml(c.v2_text)}</td>
+                        <td style="color:var(--text-secondary);">${c.v1_page ? 'Page ' + escapeHtml(c.v1_page) + '<br>' : ''}${escapeHtml(c.v1_text || '[No text]')}</td>
+                        <td style="color:var(--accent-cyan);">${c.v2_page ? 'Page ' + escapeHtml(c.v2_page) + '<br>' : ''}${escapeHtml(c.v2_text || '[No text]')}</td>
                         <td><span class="${riskBadgeClass(c.impact)}">${escapeHtml(c.impact)}</span></td>
                         <td style="font-size:0.8rem;">${escapeHtml(c.analysis)}</td>
                     </tr>
@@ -575,17 +658,59 @@
 
                 container.innerHTML = `
                     <div style="font-size:0.9rem; margin-bottom:0.75rem; color:var(--accent-cyan);">
-                        Comparing <strong>${escapeHtml(data.doc1_name)}</strong> ↔ <strong>${escapeHtml(data.doc2_name)}</strong> (${escapeHtml(data.total_changes_detected)} Clause Changes Identified)
+                        Comparing <strong>${escapeHtml(data.doc1_name)}</strong> ↔ <strong>${escapeHtml(data.doc2_name)}</strong> (${escapeHtml(data.total_changes_detected)} text changes)
                     </div>
+                    <p role="status">Status: ${escapeHtml(data.status)}. ${escapeHtml(data.comparison_scope)}</p>
+                    <p>${escapeHtml((data.warnings || []).join(' '))}</p>
                     <table class="custom-table">
                         <thead>
-                            <tr><th>Clause</th><th>Version 1 Text</th><th>Version 2 Text</th><th>Impact</th><th>Analysis</th></tr>
+                            <tr><th>Text change</th><th>Version 1 Text</th><th>Version 2 Text</th><th>Impact</th><th>Analysis</th></tr>
                         </thead>
                         <tbody>${rows}</tbody>
                     </table>
                 `;
             } catch (err) {
+                if (err.name === 'AbortError') return;
                 container.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        async function loadVisuals() {
+            if (!requireDocument()) return;
+            switchTab('visuals-tab');
+            const container = document.getElementById('visuals-container');
+            container.textContent = 'Loading visual page previews...';
+            try {
+                const data = await readApiResponse(await scopedFetch(`${API_HOST}/api/visuals`, {credentials: 'include'}));
+                container.replaceChildren();
+                const coverage = document.createElement('p');
+                coverage.textContent = `${data.previews.length} of ${data.visual_pages_total} visual pages shown. ${(data.warnings || []).join(' ')}`;
+                container.appendChild(coverage);
+                data.previews.forEach(preview => {
+                    const figure = document.createElement('figure');
+                    const caption = document.createElement('figcaption');
+                    caption.textContent = `Page ${preview.page}`;
+                    const image = document.createElement('img');
+                    image.src = preview.image_url;
+                    image.alt = `Contract page ${preview.page}`;
+                    image.style.cssText = 'max-width:100%;max-height:650px;object-fit:contain;background:white;margin:1rem 0;';
+                    figure.append(caption, image);
+                    container.appendChild(figure);
+                });
+            } catch (err) {
+                if (err.name !== 'AbortError') container.textContent = err.message;
+            }
+        }
+
+        async function analyzeVisuals() {
+            if (!requireDocument()) return;
+            const container = document.getElementById('visual-analysis-output');
+            container.textContent = 'Analyzing visual pages...';
+            try {
+                const data = await readApiResponse(await scopedFetch(`${API_HOST}/api/visuals/analyze`, {method:'POST', credentials:'include'}));
+                container.innerHTML = data.results.map(item => `<div class="heatmap-item"><strong>${item.page ? 'Page ' + escapeHtml(item.page) : 'Visual analysis'} — ${escapeHtml(item.status)}</strong><p style="white-space:pre-wrap;">${escapeHtml(item.analysis)}</p></div>`).join('');
+            } catch (err) {
+                if (err.name !== 'AbortError') container.textContent = err.message;
             }
         }
 

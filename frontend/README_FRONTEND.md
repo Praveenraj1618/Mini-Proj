@@ -86,3 +86,11 @@ public class LegalAIClientController {
     }
 }
 ```
+
+## Version 2.2 additions
+
+The dashboard now has a **Visuals & OCR** tab. `GET /api/visuals` returns page previews and coverage; `POST /api/visuals/analyze` requests descriptions from explicitly configured vision models. Upload responses include OCR page numbers, extraction warnings, and a `document_id`.
+
+Clients should include that ID as `X-Document-Id` on subsequent document requests. Replaced-document IDs return 409. New uploads clear prior panels, and stale responses are ignored. Classification displays its source/method rather than an uncalibrated percentage. Comparison statuses distinguish no changes, text-only differences, completed AI assessment, and partial/failed assessment.
+
+See [setup and limits](../docs/second_review_fixes.md). Run UI-state regressions with `node --test frontend/tests/state.test.cjs` from the repository root.

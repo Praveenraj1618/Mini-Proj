@@ -3,6 +3,7 @@ import re
 from typing import List
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from core.document_loader import LoadedDocument
+from config import CHUNK_SIZE, CHUNK_OVERLAP
 
 @dataclass
 class DocumentChunk:
@@ -38,7 +39,7 @@ class LegalChunker:
     Splits legal documents while maintaining page-level grounding, clause boundaries, and section context.
     """
 
-    def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 200):
+    def __init__(self, chunk_size: int = CHUNK_SIZE, chunk_overlap: int = CHUNK_OVERLAP):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.splitter = RecursiveCharacterTextSplitter(
