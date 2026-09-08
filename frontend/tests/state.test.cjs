@@ -98,3 +98,24 @@ test('document API calls identify their source upload', async () => {
     await app.run('executeQA()');
     assert.equal(headers.get('X-Document-Id'), 'document-one');
 });
+
+test('QA failures display the actionable provider diagnostic', async () => {
+    const app = setup(async () => ({ok:true, json:async () => ({answer:'Generation failed',sources:[],diagnostic:{message:'Groq: rate_limit (HTTP 429). Check limits.'}})}));
+    await app.run('executeQA()');
+    assert.ok(app.document.getElementById('qa-output').innerHTML.includes('HTTP 429'));
+});
+
+test('empty fallback obligation results still explain the provider failure', async () => {
+    const app = setup(async () => ({ok:true, json:async () => ({items:[],mode:'rule_based',diagnostic:{message:'Groq: authentication (HTTP 401).'}})}));
+    await app.run('loadObligations()');
+    const output = app.document.getElementById('obligations-container').innerHTML;
+    assert.ok(output.includes('rule-based candidate'));
+    assert.ok(output.includes('HTTP 401'));
+});
+
+test('explicit AI check shows safe diagnostic and re-enables its button', async () => {
+    const app = setup(async () => ({ok:true,json:async () => ({status:'failed',diagnostic:{message:'Groq: model_unavailable (HTTP 404).'}})}));
+    await app.run('checkAIConnection()');
+    assert.ok(app.document.getElementById('llm-status').textContent.includes('HTTP 404'));
+    assert.equal(app.document.getElementById('check-ai-button').disabled, false);
+});

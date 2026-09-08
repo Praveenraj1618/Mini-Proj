@@ -25,6 +25,7 @@ from config import (MAX_UPLOAD_MB, check_api_key_configured, configured_llm_prov
 from core.chunker import LegalChunker
 from core.document_loader import LegalDocumentLoader, LoadedDocument
 from core.legal_reviewer import LegalReviewer
+from langchain_core.messages import HumanMessage
 from core.vector_store import LegalVectorStore
 
 
@@ -119,6 +120,7 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
         return reviewer
 
     def _set_headers(self, status: int, content_type: str, content_length: int = 0):
+        self._response_started = True
         self.send_response(status)
         origin = self.headers.get("Origin")
         allowed_origins = {
@@ -146,10 +148,20 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
             )
         self.end_headers()
 
+    def _send_bytes(self, content, content_type, status=200):
+        if getattr(self, "_client_disconnected", False):
+            return
+        try:
+            self._set_headers(status, content_type, len(content))
+            self.wfile.write(content)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            self._client_disconnected = True
+            self.close_connection = True
+            self.log_message("Client disconnected while receiving %s; response stopped.", self.path)
+
     def _send_json(self, data: Any, status: int = 200):
         encoded = json.dumps(data, ensure_ascii=False).encode("utf-8")
-        self._set_headers(status, "application/json; charset=utf-8", len(encoded))
-        self.wfile.write(encoded)
+        self._send_bytes(encoded, "application/json; charset=utf-8", status)
 
     def _read_body(self, maximum: int) -> bytes:
         try:
@@ -241,8 +253,7 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
                 if not html_file.exists():
                     raise RequestError("frontend/index.html not found.", 404)
                 content = html_file.read_bytes()
-                self._set_headers(200, "text/html; charset=utf-8", len(content))
-                self.wfile.write(content)
+                self._send_bytes(content, "text/html; charset=utf-8")
                 return
 
             if path in ("/api", "/api/status"):
@@ -287,14 +298,22 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
             elif path == "/api/heatmap":
                 self._send_json(reviewer.generate_clause_risk_heatmap())
             elif path == "/api/obligations":
-                self._send_json(reviewer.extract_obligations())
+                items = reviewer.extract_obligations()
+                query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                if query.get("include_status") == ["1"]:
+                    self._send_json({"items": items, **reviewer.obligation_status})
+                else:
+                    self._send_json(items)
             else:
                 raise RequestError(f"Endpoint GET {path} not found.", 404)
         except RequestError as exc:
             self._send_json({"error": str(exc)}, exc.status)
         except Exception as exc:
             self.log_error("Unhandled GET error: %s", exc)
-            self._send_json({"error": "The server could not complete the request."}, 500)
+            if getattr(self, "_response_started", False):
+                self.close_connection = True
+            else:
+                self._send_json({"error": "The server could not complete the request."}, 500)
 
     def do_POST(self):
         try:
@@ -306,6 +325,16 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
     def _handle_post(self):
         path = urllib.parse.urlparse(self.path).path
         try:
+            if path == "/api/llm/check":
+                self._read_json()
+                reviewer = LegalReviewer(LoadedDocument("<none>", "connection-check", 0), None)
+                try:
+                    reviewer._invoke_llm([HumanMessage(content="Reply with the word OK.")], max_tokens=256)
+                    self._send_json({"status": "ready", "message": reviewer.last_llm_diagnostic})
+                except Exception as error:
+                    self._send_json({"status": "failed", "diagnostic": reviewer._failure_details(error)})
+                return
+
             if path == "/api/upload":
                 file_data, filename = self._read_uploaded_pdf()
                 reviewer, chunk_count = self._build_reviewer(file_data, filename)
@@ -371,7 +400,10 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
             self._send_json({"error": str(exc)}, exc.status)
         except Exception as exc:
             self.log_error("Unhandled POST error: %s", exc)
-            self._send_json({"error": "The server could not complete the request."}, 500)
+            if getattr(self, "_response_started", False):
+                self.close_connection = True
+            else:
+                self._send_json({"error": "The server could not complete the request."}, 500)
 
 
 def run_server(port: int = 8080):
