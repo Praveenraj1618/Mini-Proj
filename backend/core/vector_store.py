@@ -2,7 +2,7 @@ import uuid
 from typing import List, Tuple, Optional
 from langchain_core.documents import Document
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.embeddings import Embeddings
 from config import DEFAULT_EMBEDDING_MODEL
 from core.chunker import DocumentChunk
 from core.retrieval_embeddings import shared_embeddings
@@ -22,7 +22,7 @@ class LegalVectorStore:
         self._chunks: List[DocumentChunk] = []
 
     @property
-    def embeddings(self) -> HuggingFaceEmbeddings:
+    def embeddings(self) -> Embeddings:
         if self._embeddings is None:
             self._embeddings = shared_embeddings(self.model_name)
         return self._embeddings

@@ -37,6 +37,7 @@ SESSION_DATA: Dict[str, Dict[str, Any]] = {}
 SESSION_LOCK = threading.RLock()
 
 
+from core.review_localization import localize_payload
 from core.review_profiles import LANGUAGES, OCR_LANGUAGES, PROFILES
 
 class RequestError(Exception):
@@ -179,6 +180,7 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
             self.log_message("Client disconnected while receiving %s; response stopped.", self.path)
 
     def _send_json(self, data: Any, status: int = 200):
+        data = localize_payload(data, getattr(self, "headers", {}).get("X-Response-Language", "en"))
         encoded = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self._send_bytes(encoded, "application/json; charset=utf-8", status)
 

@@ -93,7 +93,7 @@ class LegalDocumentLoader:
                 )
                 # Also handle a scan beneath a small native-text header/footer.
                 suspicious = any(c == '\ufffd' or (unicodedata.category(c) == 'Cc' and not c.isspace()) for c in text)
-                suspicious = suspicious or (self.source_language in {'ta','hi'} and len(text) > 30 and self.source_language not in detect_languages(text))
+                suspicious = suspicious or (self.source_language in {'ta','hi'} and len(text) > 30 and (self.source_language not in detect_languages(text) or "unknown" in detect_languages(text)))
                 if suspicious:
                     result.warnings.append(f'Page {page_num}: native text encoding may be damaged or differ from the selected language; OCR recovery requested.')
                 needs_ocr = suspicious or (bool(images) and (len(text) < 80 or image_coverage >= 0.35)) or (not text and drawings)

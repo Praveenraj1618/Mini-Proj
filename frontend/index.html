@@ -329,10 +329,11 @@
             while ((node = walker.nextNode())) {
                 if (node.parentElement?.closest('script,style,blockquote,.evidence-card,.heatmap-excerpt,.source-text,.summary-text')) continue;
                 const trimmed = node.textContent.trim();
-                const original = originalUiText.get(node) || (UI_TRANSLATIONS[trimmed] ? trimmed : null);
+                const previous = originalUiText.get(node);
+                const original = previous && previous.rendered === node.textContent ? previous.source : (UI_TRANSLATIONS[trimmed] ? trimmed : null);
                 if (!original) continue;
-                originalUiText.set(node, original);
                 const translated = uiText(original);
+                originalUiText.set(node, {source:original, rendered:translated});
                 if (node.textContent !== translated) node.textContent = translated;
             }
             document.getElementById('qa-input').placeholder = {en:'Ask a question about this document',ta:'இந்த ஆவணம் பற்றி கேள்வி கேளுங்கள்',hi:'इस दस्तावेज़ के बारे में प्रश्न पूछें'}[interfaceLanguage];
@@ -647,7 +648,8 @@
                     evidenceHtml = data.sources.map(s => `
                         <div class="evidence-card">
                             <div class="evidence-head"><span>📌 Source Evidence — [Page ${escapeHtml(s.page)}]</span><span>${escapeHtml(s.score_type)}: ${escapeHtml(s.score)}</span></div>
-                            <div style="font-size:0.85rem; color:var(--text-secondary);">${escapeHtml(s.text)}</div>
+                            <div class="source-text" style="font-size:0.85rem; color:var(--text-secondary);">${escapeHtml(s.text)}</div>
+                            ${s.retrieval_note ? `<div class="diagnostic">${escapeHtml(s.retrieval_note)}</div>` : ""}
                         </div>
                     `).join('');
                 }

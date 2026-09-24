@@ -9,10 +9,14 @@ from config import RERANKER_MODEL, RRF_K, TOP_K_DENSE, TOP_K_BM25, RERANKER_ENAB
 from core.chunker import DocumentChunk, is_evaluation_artifact_text
 from core.vector_store import LegalVectorStore
 
+# Function words must not give unrelated same-language chunks lexical votes
+# against genuinely relevant cross-language dense matches. Keep negation/duties.
+LEXICAL_STOPWORDS = set("the a an how much is are of to in on for and or what which who when where does do can क्या कितना कितनी है हैं को की के का में से என்ன எவ்வளவு எப்படி எப்போது யார்".split())
+
 def tokenize_legal_text(text: str) -> List[str]:
     """Tokenizes text for BM25, stripping punctuation and converting to lowercase."""
     cleaned = "".join(c if unicodedata.category(c)[0] in "LMN" or c == "§" else " " for c in unicodedata.normalize("NFC", text).casefold())
-    return [token for token in cleaned.split() if len(token) > 1]
+    return [token for token in cleaned.split() if len(token) > 1 and token not in LEXICAL_STOPWORDS]
 
 
 def expand_legal_query(query: str) -> str:
@@ -60,7 +64,9 @@ class BM25Retriever:
 
         scores = self.bm25.get_scores(tokenized_query)
         # Pair chunk with score
-        scored_chunks = list(zip(self.chunks, scores))
+        query_terms = set(tokenized_query)
+        scored_chunks = [(chunk, score) for chunk, score, tokens in zip(self.chunks, scores, self.corpus_tokens)
+                         if query_terms.intersection(tokens)]
         # Sort descending by score
         scored_chunks.sort(key=lambda x: x[1], reverse=True)
         return scored_chunks[:top_k]
