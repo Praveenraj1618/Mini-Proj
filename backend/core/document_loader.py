@@ -1,6 +1,9 @@
 """Page-grounded PDF extraction with optional local OCR and visual previews."""
 import base64
 import os
+import unicodedata
+from pathlib import Path
+from core.review_profiles import OCR_LANGUAGES, detect_languages
 import threading
 from dataclasses import dataclass, field
 from typing import List, Optional, Union
@@ -44,10 +47,15 @@ class LoadedDocument:
     ocr_pages: List[int] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
     visual_pages_total: int = 0
+    languages: List[str] = field(default_factory=list)
 
 
 class LegalDocumentLoader:
-    def __init__(self, min_image_dim: int = 80, ocr_enabled: bool = OCR_ENABLED):
+    def __init__(self, min_image_dim: int = 80, ocr_enabled: bool = OCR_ENABLED, source_language: str = "auto"):
+        if source_language not in OCR_LANGUAGES:
+            raise ValueError("Unsupported source language")
+        self.source_language = source_language
+        self.ocr_language = OCR_LANGUAGE if source_language == "auto" else OCR_LANGUAGES[source_language]
         self.min_image_dim = min_image_dim
         self.ocr_enabled = ocr_enabled
 
@@ -84,21 +92,28 @@ class LegalDocumentLoader:
                     default=0,
                 )
                 # Also handle a scan beneath a small native-text header/footer.
-                needs_ocr = (bool(images) and (len(text) < 80 or image_coverage >= 0.35)) or (not text and drawings)
+                suspicious = any(c == '\ufffd' or (unicodedata.category(c) == 'Cc' and not c.isspace()) for c in text)
+                suspicious = suspicious or (self.source_language in {'ta','hi'} and len(text) > 30 and self.source_language not in detect_languages(text))
+                if suspicious:
+                    result.warnings.append(f'Page {page_num}: native text encoding may be damaged or differ from the selected language; OCR recovery requested.')
+                needs_ocr = suspicious or (bool(images) and (len(text) < 80 or image_coverage >= 0.35)) or (not text and drawings)
                 if needs_ocr:
                     if self.ocr_enabled:
                         try:
+                            data_path = Path(fitz.get_tessdata(OCR_TESSDATA))
+                            if any(not (data_path / (code + '.traineddata')).is_file() for code in self.ocr_language.split('+')):
+                                raise RuntimeError('Required OCR language data is missing')
                             textpage = page.get_textpage_ocr(
-                                language=OCR_LANGUAGE, dpi=OCR_DPI,
-                                full=not bool(text), tessdata=OCR_TESSDATA,
+                                language=self.ocr_language, dpi=OCR_DPI,
+                                full=suspicious or not bool(text), tessdata=OCR_TESSDATA,
                             )
                             text = page.get_text("text", textpage=textpage).strip()
-                            method = "ocr" if not page.get_text("text").strip() else "native+ocr"
+                            method = "ocr-recovery" if suspicious else "ocr" if not page.get_text("text").strip() else "native+ocr"
                             result.ocr_pages.append(page_num)
                         except Exception:
                             result.warnings.append(
                                 f"Page {page_num}: OCR failed. Install Tesseract language data "
-                                f"for '{OCR_LANGUAGE}' and set OCR_TESSDATA if needed; "
+                                f"for '{self.ocr_language}' and set OCR_TESSDATA if needed; "
                                 "this page may have incomplete searchable text."
                             )
                     else:
@@ -125,6 +140,7 @@ class LegalDocumentLoader:
                 result.total_chars += len(text)
                 if text:
                     full_text.append(f"--- [Page {page_num}] ---\n{text}")
+            result.languages = detect_languages(" ".join(p.text for p in result.pages))
             result.full_text = "\n\n".join(full_text)
             if result.visual_pages_total > len(result.images):
                 result.warnings.append(

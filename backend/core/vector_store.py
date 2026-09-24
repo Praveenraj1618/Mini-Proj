@@ -5,6 +5,7 @@ from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from config import DEFAULT_EMBEDDING_MODEL
 from core.chunker import DocumentChunk
+from core.retrieval_embeddings import shared_embeddings
 
 class LegalVectorStore:
     """
@@ -23,11 +24,7 @@ class LegalVectorStore:
     @property
     def embeddings(self) -> HuggingFaceEmbeddings:
         if self._embeddings is None:
-            self._embeddings = HuggingFaceEmbeddings(
-                model_name=self.model_name,
-                model_kwargs={"device": "cpu"},
-                encode_kwargs={"normalize_embeddings": True},
-            )
+            self._embeddings = shared_embeddings(self.model_name)
         return self._embeddings
 
     def build_index(self, chunks: List[DocumentChunk]) -> Chroma:
