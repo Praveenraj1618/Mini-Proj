@@ -13,7 +13,7 @@ load_dotenv(dotenv_path=BASE_DIR.parent / ".env")
 
 
 # Embedding Configuration
-DEFAULT_EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+DEFAULT_EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "intfloat/multilingual-e5-small")
 
 # Chunking & Retrieval Configuration
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
@@ -26,10 +26,11 @@ TOP_K_DENSE = int(os.getenv("TOP_K_DENSE", "10"))
 TOP_K_BM25 = int(os.getenv("TOP_K_BM25", "10"))
 RRF_K = int(os.getenv("RRF_K", "60"))
 RERANKER_MODEL = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+MULTILINGUAL_RERANKER_MODEL = os.getenv("MULTILINGUAL_RERANKER_MODEL", "").strip()
 RERANKER_ENABLED = os.getenv("RERANKER_ENABLED", "true").lower() == "true"
 SUMMARY_CONTEXT_CHARS = int(os.getenv("SUMMARY_CONTEXT_CHARS", "12000"))
 OCR_ENABLED = os.getenv("OCR_ENABLED", "true").lower() == "true"
-OCR_LANGUAGE = os.getenv("OCR_LANGUAGE", "eng")
+OCR_LANGUAGE = os.getenv("OCR_LANGUAGE", "eng+tam+hin")
 OCR_DPI = int(os.getenv("OCR_DPI", "200"))
 OCR_TESSDATA = os.getenv("OCR_TESSDATA") or None
 MAX_VISUAL_PAGES = int(os.getenv("MAX_VISUAL_PAGES", "5"))

@@ -1,4 +1,7 @@
 import re
+import unicodedata
+from core.review_profiles import detect_languages
+from config import MULTILINGUAL_RERANKER_MODEL
 from typing import Any, List, Tuple, Dict
 from langchain_core.documents import Document
 from rank_bm25 import BM25Okapi
@@ -6,10 +9,14 @@ from config import RERANKER_MODEL, RRF_K, TOP_K_DENSE, TOP_K_BM25, RERANKER_ENAB
 from core.chunker import DocumentChunk, is_evaluation_artifact_text
 from core.vector_store import LegalVectorStore
 
+# Function words must not give unrelated same-language chunks lexical votes
+# against genuinely relevant cross-language dense matches. Keep negation/duties.
+LEXICAL_STOPWORDS = set("the a an how much is are of to in on for and or what which who when where does do can क्या कितना कितनी है हैं को की के का में से என்ன எவ்வளவு எப்படி எப்போது யார்".split())
+
 def tokenize_legal_text(text: str) -> List[str]:
     """Tokenizes text for BM25, stripping punctuation and converting to lowercase."""
-    cleaned = re.sub(r"[^\w\s§]", " ", text.lower())
-    return [token for token in cleaned.split() if len(token) > 1]
+    cleaned = "".join(c if unicodedata.category(c)[0] in "LMN" or c == "§" else " " for c in unicodedata.normalize("NFC", text).casefold())
+    return [token for token in cleaned.split() if len(token) > 1 and token not in LEXICAL_STOPWORDS]
 
 
 def expand_legal_query(query: str) -> str:
@@ -45,7 +52,7 @@ class BM25Retriever:
     def __init__(self, chunks: List[DocumentChunk]):
         self.chunks = [chunk for chunk in chunks if not is_evaluation_artifact_text(chunk.text)]
         self.corpus_tokens = [tokenize_legal_text(c.text) for c in self.chunks]
-        self.bm25 = BM25Okapi(self.corpus_tokens) if self.corpus_tokens else None
+        self.bm25 = BM25Okapi(self.corpus_tokens) if any(self.corpus_tokens) else None
 
     def search(self, query: str, top_k: int = 10) -> List[Tuple[DocumentChunk, float]]:
         if not self.bm25 or not self.chunks:
@@ -57,7 +64,9 @@ class BM25Retriever:
 
         scores = self.bm25.get_scores(tokenized_query)
         # Pair chunk with score
-        scored_chunks = list(zip(self.chunks, scores))
+        query_terms = set(tokenized_query)
+        scored_chunks = [(chunk, score) for chunk, score, tokens in zip(self.chunks, scores, self.corpus_tokens)
+                         if query_terms.intersection(tokens)]
         # Sort descending by score
         scored_chunks.sort(key=lambda x: x[1], reverse=True)
         return scored_chunks[:top_k]
@@ -106,6 +115,8 @@ class LegalHybridRetriever:
         self.chunks = chunks
         self.bm25_retriever = BM25Retriever(chunks)
         self.reranker = LegalCrossEncoderReranker()
+        self.multilingual_reranker = LegalCrossEncoderReranker(MULTILINGUAL_RERANKER_MODEL) if MULTILINGUAL_RERANKER_MODEL else None
+        self.non_english_document = any(set(detect_languages(c.text)) - {"en"} for c in chunks)
         self.rrf_k = rrf_k
         self._artifact_chunk_count = sum(
             is_evaluation_artifact_text(chunk.text) for chunk in chunks
@@ -178,8 +189,14 @@ class LegalHybridRetriever:
 
         # 4. Cross-Encoder Reranking
         if use_reranker and candidate_docs:
+            multilingual = self.non_english_document or bool(set(detect_languages(query)) - {'en'})
+            reranker = self.multilingual_reranker if multilingual else self.reranker
+            if reranker is None:
+                for doc in candidate_docs:
+                    doc.metadata['reranker_skipped'] = 'No multilingual reranker configured; using hybrid RRF order.'
+                return candidate_docs[:top_k]
             try:
-                reranked_tuples = self.reranker.rerank(query, candidate_docs, top_k=top_k)
+                reranked_tuples = reranker.rerank(query, candidate_docs, top_k=top_k)
                 return [doc for doc, _ in reranked_tuples]
             except Exception as exc:
                 # Retrieval remains available offline if the optional reranker model

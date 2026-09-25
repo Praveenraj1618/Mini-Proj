@@ -133,6 +133,14 @@
         .hidden { display: none !important; }
         .spinner { border: 3px solid rgba(255, 255, 255, 0.1); border-top: 3px solid var(--accent-cyan); border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; display: inline-block; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .review-controls {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1rem;margin-bottom:1.5rem;}
+        .review-controls label {display:flex;flex-direction:column;gap:.5rem;}
+        .review-controls select {padding:.75rem;background:var(--bg-primary,#111827);color:var(--text-primary,#fff);border:1px solid #536178;border-radius:8px;max-width:100%;}
+        #review-scope {grid-column:1/-1;color:var(--accent-amber);}
+        html:lang(ta),html:lang(hi) {line-height:1.8;}
+        #obligations-container {overflow-x:auto;}
+        blockquote {margin:.7rem 0;padding:.5rem;border-left:2px solid var(--accent-cyan);white-space:pre-wrap;}
+        @media(max-width:850px) {.review-controls {grid-template-columns:1fr;} header {flex-wrap:wrap;}}
     </style>
 </head>
 <body>
@@ -142,7 +150,7 @@
             <span class="logo-icon">⚖️</span>
             <div>
                 <div class="logo-title">LEGAL AI INTELLIGENCE & NEGOTIATION PLATFORM</div>
-                <div class="logo-sub">Hybrid Dense+BM25 RAG • Risk Heatmaps • Negotiation Assistant • 50-Query Ablation Tested</div>
+                <div class="logo-sub">Evidence-grounded document review • English • தமிழ் • हिन्दी</div>
             </div>
         </div>
         <div style="display: flex; gap: 0.75rem; align-items: center;">
@@ -156,6 +164,12 @@
 
 
     <main>
+        <div class="glass-card review-controls">
+            <label><span>Response language</span><select id="response-language" onchange="changeReviewPreferences()"><option value="en">English</option><option value="ta">தமிழ்</option><option value="hi">हिन्दी</option></select></label>
+            <label><span>PDF language / OCR (before upload)</span><select id="source-language"><option value="auto">Auto / mixed</option><option value="en">English</option><option value="ta">தமிழ் + English</option><option value="hi">हिन्दी + English</option></select></label>
+            <label><span>Document category</span><select id="document-category" onchange="changeReviewPreferences()"><option value="auto">Auto-detect (confirm result)</option><option value="nda">Non-Disclosure Agreement (NDA)</option><option value="services">Services / vendor agreement</option><option value="employment">Employment agreement</option><option value="lease">Lease / rental agreement</option><option value="property">Property transfer / mortgage</option><option value="judgment">Judgment / court order</option><option value="pleading">Petition / pleading</option><option value="affidavit">Affidavit / declaration</option><option value="legislation">Act / rules / regulation</option><option value="corporate">Corporate / governance document</option><option value="will">Will / trust instrument</option><option value="power_of_attorney">Power of attorney</option><option value="notice">Legal notice</option><option value="policy">Privacy policy / terms</option><option value="ip_license">IP / licence agreement</option><option value="general_contract">Other contract</option><option value="unknown">Unknown / mixed document</option></select></label>
+            <p id="review-scope" role="status"></p>
+        </div>
         <div class="dashboard-grid">
             <aside style="display: flex; flex-direction: column; gap: 1.5rem;">
                 <div class="glass-card">
@@ -164,8 +178,8 @@
                     </div>
                     <div class="dropzone" id="dropzone-box" onclick="document.getElementById('file-input').click()">
                         <div class="dropzone-icon">📄</div>
-                        <div class="dropzone-text">Click to Upload PDF Contract</div>
-                        <div class="dropzone-sub">Supports NDAs, MSAs, Leases & Commercial Contracts</div>
+                        <div class="dropzone-text">Click to Upload Legal PDF</div>
+                        <div class="dropzone-sub">Contracts, court documents, legislation and more</div>
                         <input type="file" id="file-input" accept=".pdf" class="hidden" onchange="handleFileUpload(event)">
                     </div>
 
@@ -210,7 +224,7 @@
                     <div class="glass-card">
                         <div class="card-header">
                             <span class="card-title">📊 Clause-Level Structural Risk Heatmap</span>
-                            <span style="font-size: 0.8rem; color: var(--text-secondary);">Automated 8-Category Risk Breakdown</span>
+                            <span style="font-size: 0.8rem; color: var(--text-secondary);">Document-specific review areas</span>
                         </div>
                         <div class="heatmap-list" id="heatmap-container">
                             <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">Upload a PDF document to generate an automated Clause Risk Heatmap.</div>
@@ -222,7 +236,7 @@
                     <div class="glass-card">
                         <div class="card-header">
                             <span class="card-title">📄 Executive Summary & Document Classification</span>
-                            <span style="font-size: 0.8rem; color: var(--accent-cyan);">Grounded in uploaded contract pages</span>
+                            <span style="font-size: 0.8rem; color: var(--accent-cyan);">Grounded in uploaded document pages</span>
                         </div>
                         <div id="summary-container">
                             <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">Upload a PDF, then click Executive Summary.</div>
@@ -301,6 +315,55 @@
     </main>
 
     <script>
+
+        const PROFILE_CATALOG = {"nda": {"id": "nda", "labels": {"en": "Non-Disclosure Agreement (NDA)", "ta": "ரகசியக் காப்பு ஒப்பந்தம்", "hi": "गोपनीयता समझौता"}, "markers": ["non-disclosure agreement", "confidentiality agreement", "ரகசியக் காப்பு ஒப்பந்தம்", "गोपनीयता समझौता"], "topics": ["Confidential information and exclusions", "Permitted disclosures", "Duration and return of information", "Duties and remedies"], "negotiable": true}, "services": {"id": "services", "labels": {"en": "Services / vendor agreement", "ta": "சேவை / வழங்குநர் ஒப்பந்தம்", "hi": "सेवा / आपूर्तिकर्ता समझौता"}, "markers": ["services agreement", "service agreement", "consultancy agreement", "vendor agreement", "சேவை ஒப்பந்தம்", "सेवा समझौता"], "topics": ["Scope and deliverables", "Payment and service levels", "Liability and indemnity", "Termination and disputes"], "negotiable": true}, "employment": {"id": "employment", "labels": {"en": "Employment agreement", "ta": "வேலைவாய்ப்பு ஒப்பந்தம்", "hi": "रोजगार समझौता"}, "markers": ["employment agreement", "employment contract", "offer of employment", "வேலைவாய்ப்பு ஒப்பந்தம்", "रोजगार समझौता", "नियुक्ति पत्र"], "topics": ["Role and compensation", "Hours leave and benefits", "Confidentiality and restrictions", "Termination and notice"], "negotiable": true}, "lease": {"id": "lease", "labels": {"en": "Lease / rental agreement", "ta": "குத்தகை / வாடகை ஒப்பந்தம்", "hi": "पट्टा / किरायानामा"}, "markers": ["lease agreement", "rental agreement", "வாடகை ஒப்பந்தம்", "குத்தகை ஒப்பந்தம்", "किरायानामा", "पट्टा समझौता"], "topics": ["Property and parties", "Rent deposit and escalation", "Maintenance and permitted use", "Renewal and termination"], "negotiable": true}, "property": {"id": "property", "labels": {"en": "Property transfer / mortgage", "ta": "சொத்து பரிமாற்றம் / அடமானம்", "hi": "संपत्ति हस्तांतरण / बंधक"}, "markers": ["sale deed", "mortgage deed", "conveyance deed", "விற்பனைப் பத்திரம்", "அடமானப் பத்திரம்", "विक्रय विलेख", "बंधक विलेख"], "topics": ["Property description and parties", "Consideration and payment", "Representations and encumbrances", "Execution and registration statements"], "negotiable": false}, "judgment": {"id": "judgment", "labels": {"en": "Judgment / court order", "ta": "தீர்ப்பு / நீதிமன்ற ஆணை", "hi": "निर्णय / न्यायालय आदेश"}, "markers": ["judgment", "court order", "நீதிமன்றத் தீர்ப்பு", "நீதிமன்ற ஆணை", "न्यायालय का निर्णय", "न्यायालय आदेश"], "topics": ["Court parties and procedural history", "Issues and submissions", "Reasoning versus cited precedent", "Operative directions relief and deadlines"], "negotiable": false}, "pleading": {"id": "pleading", "labels": {"en": "Petition / pleading", "ta": "மனு / வாதுரை", "hi": "याचिका / अभिवचन"}, "markers": ["writ petition", "plaint", "written statement", "counter affidavit", "ரிட் மனு", "வழக்கு மனு", "रिट याचिका", "वादपत्र"], "topics": ["Parties forum and relief sought", "Allegations versus established facts", "Grounds and cited provisions", "Requested orders and procedural dates"], "negotiable": false}, "affidavit": {"id": "affidavit", "labels": {"en": "Affidavit / declaration", "ta": "உறுதிமொழிப் பத்திரம்", "hi": "शपथपत्र / घोषणा"}, "markers": ["affidavit", "statutory declaration", "உறுதிமொழிப் பத்திரம்", "शपथपत्र"], "topics": ["Declarant and capacity", "Statements and knowledge basis", "Dates exhibits and inconsistencies", "Attestation stated in text"], "negotiable": false}, "legislation": {"id": "legislation", "labels": {"en": "Act / rules / regulation", "ta": "சட்டம் / விதிகள்", "hi": "अधिनियम / नियम"}, "markers": ["an act to", "be it enacted", "சட்ட விதிகள்", "ஒழுங்குமுறை விதிகள்", "अधिनियम", "विनियम"], "topics": ["Scope definitions and jurisdiction", "Commencement and amendments stated", "Rights duties exceptions and penalties", "Sections schedules and delegated powers"], "negotiable": false}, "corporate": {"id": "corporate", "labels": {"en": "Corporate / governance document", "ta": "நிறுவன நிர்வாக ஆவணம்", "hi": "कंपनी / शासन दस्तावेज़"}, "markers": ["board resolution", "articles of association", "memorandum of association", "வாரியத் தீர்மானம்", "நிறுவன அமைப்பு விதிகள்", "बोर्ड प्रस्ताव", "अंतर्नियम"], "topics": ["Entity and authority", "Decisions voting and approvals", "Delegated powers and restrictions", "Execution and effective dates"], "negotiable": false}, "will": {"id": "will", "labels": {"en": "Will / trust instrument", "ta": "உயில் / அறக்கட்டளை ஆவணம்", "hi": "वसीयत / न्यास दस्तावेज़"}, "markers": ["last will", "trust deed", "உயில்", "அறக்கட்டளைப் பத்திரம்", "वसीयत", "न्यास विलेख"], "topics": ["Testator settlor trustees and beneficiaries", "Assets gifts and conditions", "Executor powers and succession", "Revocation witnesses and execution"], "negotiable": false}, "power_of_attorney": {"id": "power_of_attorney", "labels": {"en": "Power of attorney", "ta": "அதிகாரப் பத்திரம்", "hi": "मुख्तारनामा"}, "markers": ["power of attorney", "அதிகாரப் பத்திரம்", "मुख्तारनामा", "पावर ऑफ अटॉर्नी"], "topics": ["Principal and agent", "Granted powers and exclusions", "Duration delegation and revocation", "Execution statements and conditions"], "negotiable": false}, "notice": {"id": "notice", "labels": {"en": "Legal notice", "ta": "சட்ட அறிவிப்பு", "hi": "कानूनी नोटिस"}, "markers": ["legal notice", "demand notice", "சட்ட அறிவிப்பு", "कानूनी नोटिस", "मांग नोटिस"], "topics": ["Sender recipient and dates", "Allegations and legal basis claimed", "Demand response deadline and service", "Consequences claimed and disputed facts"], "negotiable": false}, "policy": {"id": "policy", "labels": {"en": "Privacy policy / terms", "ta": "தனியுரிமைக் கொள்கை / விதிமுறைகள்", "hi": "गोपनीयता नीति / शर्तें"}, "markers": ["privacy policy", "terms of service", "தனியுரிமைக் கொள்கை", "गोपनीयता नीति", "सेवा की शर्तें"], "topics": ["Scope users and data categories", "Purposes sharing retention and consent", "User rights complaints and changes", "Liability and dispute statements"], "negotiable": true}, "ip_license": {"id": "ip_license", "labels": {"en": "IP / licence agreement", "ta": "அறிவுசார் சொத்து / உரிம ஒப்பந்தம்", "hi": "बौद्धिक संपदा / लाइसेंस समझौता"}, "markers": ["license agreement", "licence agreement", "உரிம ஒப்பந்தம்", "लाइसेंस समझौता"], "topics": ["Licensed rights ownership and territory", "Permitted use and sublicensing", "Royalties audit and infringement", "Duration and termination"], "negotiable": true}, "general_contract": {"id": "general_contract", "labels": {"en": "Other contract", "ta": "பிற ஒப்பந்தம்", "hi": "अन्य अनुबंध"}, "markers": ["agreement", "contract", "ஒப்பந்தம்", "अनुबंध", "समझौता"], "topics": ["Parties purpose and scope", "Rights duties payment and deadlines", "Exceptions liability and remedies", "Term termination and dispute clauses"], "negotiable": true}, "unknown": {"id": "unknown", "labels": {"en": "Unknown / mixed document", "ta": "தெரியாத / கலப்பு ஆவணம்", "hi": "अज्ञात / मिश्रित दस्तावेज़"}, "markers": [], "topics": ["Document purpose and participants", "Explicit facts dates and references", "Ambiguities and missing context", "Document-specific human review needed"], "negotiable": false}};
+        const UI_TRANSLATIONS = {"Response language": {"en": "Response language", "ta": "பதில் மொழி", "hi": "उत्तर की भाषा"}, "PDF language / OCR (before upload)": {"en": "PDF language / OCR (before upload)", "ta": "PDF மொழி / OCR (பதிவேற்றத்திற்கு முன்)", "hi": "PDF भाषा / OCR (अपलोड से पहले)"}, "Document category": {"en": "Document category", "ta": "ஆவண வகை", "hi": "दस्तावेज़ श्रेणी"}, "Auto / mixed": {"en": "Auto / mixed", "ta": "தானியங்கி / கலப்பு", "hi": "स्वचालित / मिश्रित"}, "Auto-detect (confirm result)": {"en": "Auto-detect (confirm result)", "ta": "தானாகக் கண்டறி (சரிபார்க்கவும்)", "hi": "स्वतः पहचानें (पुष्टि करें)"}, "Check AI connection": {"en": "Check AI connection", "ta": "AI இணைப்பைச் சரிபார்", "hi": "AI कनेक्शन जाँचें"}, "📂 Document Dropzone": {"en": "📂 Document Dropzone", "ta": "📂 ஆவணப் பதிவேற்றம்", "hi": "📂 दस्तावेज़ अपलोड"}, "Click to Upload Legal PDF": {"en": "Click to Upload Legal PDF", "ta": "சட்ட PDF பதிவேற்ற கிளிக் செய்யவும்", "hi": "कानूनी PDF अपलोड करें"}, "Contracts, court documents, legislation and more": {"en": "Contracts, court documents, legislation and more", "ta": "ஒப்பந்தங்கள், நீதிமன்ற ஆவணங்கள், சட்டங்கள் மற்றும் பிற", "hi": "अनुबंध, न्यायालय दस्तावेज़, कानून और अन्य"}, "Doc Type": {"en": "Doc Type", "ta": "ஆவண வகை", "hi": "दस्तावेज़ प्रकार"}, "Pages": {"en": "Pages", "ta": "பக்கங்கள்", "hi": "पृष्ठ"}, "Words": {"en": "Words", "ta": "சொற்கள்", "hi": "शब्द"}, "Chunks": {"en": "Chunks", "ta": "உரைப் பகுதிகள்", "hi": "पाठ खंड"}, "🚀 Quick Actions": {"en": "🚀 Quick Actions", "ta": "🚀 விரைவுச் செயல்கள்", "hi": "🚀 त्वरित कार्य"}, "📊 Risk Heatmap": {"en": "📊 Risk Heatmap", "ta": "📊 அபாய மதிப்பீடு", "hi": "📊 जोखिम मानचित्र"}, "📄 Summary": {"en": "📄 Summary", "ta": "📄 சுருக்கம்", "hi": "📄 सारांश"}, "💬 Grounded Legal Q&A": {"en": "💬 Grounded Legal Q&A", "ta": "💬 ஆதார கேள்வி பதில்", "hi": "💬 साक्ष्य आधारित प्रश्नोत्तर"}, "⚖️ Negotiation Assistant": {"en": "⚖️ Negotiation Assistant", "ta": "⚖️ பேச்சுவார்த்தை உதவியாளர்", "hi": "⚖️ बातचीत सहायक"}, "📅 Obligations": {"en": "📅 Obligations", "ta": "📅 கடமைகள்", "hi": "📅 दायित्व"}, "Visuals & OCR": {"en": "Visuals & OCR", "ta": "படங்கள் மற்றும் OCR", "hi": "चित्र और OCR"}, "🔄 Contract Comparison": {"en": "🔄 Contract Comparison", "ta": "🔄 ஆவண ஒப்பீடு", "hi": "🔄 दस्तावेज़ तुलना"}, "📄 Executive Summary": {"en": "📄 Executive Summary", "ta": "📄 ஆவணச் சுருக்கம்", "hi": "📄 दस्तावेज़ सारांश"}, "📊 Risk Heatmap Audit": {"en": "📊 Risk Heatmap Audit", "ta": "📊 அபாய ஆய்வு", "hi": "📊 जोखिम समीक्षा"}, "📊 Clause-Level Structural Risk Heatmap": {"en": "📊 Clause-Level Structural Risk Heatmap", "ta": "📊 பிரிவு வாரியான அபாய ஆய்வு", "hi": "📊 खंड आधारित जोखिम समीक्षा"}, "Document-specific review areas": {"en": "Document-specific review areas", "ta": "ஆவணத்திற்கேற்ற ஆய்வுப் பகுதிகள்", "hi": "दस्तावेज़ के अनुसार समीक्षा क्षेत्र"}, "📄 Executive Summary & Document Classification": {"en": "📄 Executive Summary & Document Classification", "ta": "📄 சுருக்கம் மற்றும் ஆவண வகைப்பாடு", "hi": "📄 सारांश और दस्तावेज़ वर्गीकरण"}, "Grounded in uploaded document pages": {"en": "Grounded in uploaded document pages", "ta": "பதிவேற்றிய ஆவணப் பக்கங்களின் ஆதாரத்தில்", "hi": "अपलोड किए गए पृष्ठों पर आधारित"}, "💬 Grounded Legal Query Engine": {"en": "💬 Grounded Legal Query Engine", "ta": "💬 ஆதார அடிப்படையிலான சட்ட கேள்விகள்", "hi": "💬 साक्ष्य आधारित कानूनी प्रश्न"}, "Ask AI": {"en": "Ask AI", "ta": "AI-யிடம் கேள்", "hi": "AI से पूछें"}, "Answer:": {"en": "Answer:", "ta": "பதில்:", "hi": "उत्तर:"}, "Retrieved Source Evidence:": {"en": "Retrieved Source Evidence:", "ta": "மீட்டெடுத்த மூல ஆதாரம்:", "hi": "प्राप्त मूल साक्ष्य:"}, "⚖️ Contract Negotiation & Safer Alternative Generator": {"en": "⚖️ Contract Negotiation & Safer Alternative Generator", "ta": "⚖️ ஒப்பந்தப் பேச்சுவார்த்தை மற்றும் மாற்று வரைவு", "hi": "⚖️ अनुबंध वार्ता और वैकल्पिक मसौदा"}, "Analyze & Draft Safer Alternative": {"en": "Analyze & Draft Safer Alternative", "ta": "ஆய்வு செய்து மாற்று வரைவு உருவாக்கு", "hi": "समीक्षा और वैकल्पिक मसौदा बनाएँ"}, "📅 Structured Obligation & Deadline Extractor": {"en": "📅 Structured Obligation & Deadline Extractor", "ta": "📅 கடமைகள் மற்றும் காலக்கெடுக்கள்", "hi": "📅 दायित्व और समयसीमा"}, "Party": {"en": "Party", "ta": "தரப்பு", "hi": "पक्ष"}, "Obligation / Duty": {"en": "Obligation / Duty", "ta": "கடமை", "hi": "दायित्व / कर्तव्य"}, "Deadline / Frequency": {"en": "Deadline / Frequency", "ta": "காலக்கெடு / இடைவெளி", "hi": "समयसीमा / आवृत्ति"}, "Consequence / Penalty": {"en": "Consequence / Penalty", "ta": "விளைவு / அபராதம்", "hi": "परिणाम / दंड"}, "Source": {"en": "Source", "ta": "ஆதாரம்", "hi": "स्रोत"}, "Visual Pages & OCR": {"en": "Visual Pages & OCR", "ta": "படப் பக்கங்கள் மற்றும் OCR", "hi": "चित्र पृष्ठ और OCR"}, "Analyze Visual Pages": {"en": "Analyze Visual Pages", "ta": "படப் பக்கங்களை ஆய்வு செய்", "hi": "चित्र पृष्ठों की समीक्षा करें"}, "Document Type": {"en": "Document Type", "ta": "ஆவண வகை", "hi": "दस्तावेज़ प्रकार"}, "Classification Method": {"en": "Classification Method", "ta": "வகைப்பாட்டு முறை", "hi": "वर्गीकरण विधि"}, "Priority Review Areas": {"en": "Priority Review Areas", "ta": "முக்கிய ஆய்வுப் பகுதிகள்", "hi": "प्रमुख समीक्षा क्षेत्र"}, "Upload a contract to begin.": {"en": "Upload a contract to begin.", "ta": "தொடங்க ஆவணத்தைப் பதிவேற்றவும்.", "hi": "शुरू करने के लिए दस्तावेज़ अपलोड करें।"}, "Preferences changed. Choose an analysis to continue.": {"en": "Preferences changed. Choose an analysis to continue.", "ta": "விருப்பங்கள் மாறின. தொடர ஆய்வைத் தேர்ந்தெடுக்கவும்.", "hi": "विकल्प बदले गए। जारी रखने के लिए समीक्षा चुनें।"}, "Confirm the category. AI output and translation require human review.": {"en": "Confirm the category. AI output and translation require human review.", "ta": "ஆவண வகையை உறுதிசெய்யவும். AI பதிலும் மொழிபெயர்ப்பும் மனித ஆய்வு தேவை.", "hi": "श्रेणी की पुष्टि करें। AI उत्तर और अनुवाद की मानवीय समीक्षा ज़रूरी है।"}, "This category is not a negotiable contract. Use summary and Q&A.": {"en": "This category is not a negotiable contract. Use summary and Q&A.", "ta": "இந்த வகை பேச்சுவார்த்தை ஒப்பந்தம் அல்ல. சுருக்கம் மற்றும் கேள்வி பதிலைப் பயன்படுத்தவும்.", "hi": "यह श्रेणी बातचीत योग्य अनुबंध नहीं है। सारांश और प्रश्नोत्तर का उपयोग करें।"}, "Unknown or mixed document: select a category and confirm its scope.": {"en": "Unknown or mixed document: select a category and confirm its scope.", "ta": "தெரியாத அல்லது கலப்பு ஆவணம்: வகையைத் தேர்ந்தெடுத்து சரிபார்க்கவும்.", "hi": "अज्ञात या मिश्रित दस्तावेज़: श्रेणी चुनें और दायरा जाँचें।"}, "⚠️ AI Output for Legal Review (Not Legal Advice)": {"en": "⚠️ AI Output for Legal Review (Not Legal Advice)", "ta": "⚠️ சட்ட ஆய்வுக்கான AI பதில் (சட்ட ஆலோசனை அல்ல)", "hi": "⚠️ कानूनी समीक्षा के लिए AI उत्तर (कानूनी सलाह नहीं)"}, "Non-Disclosure Agreement (NDA)": {"en": "Non-Disclosure Agreement (NDA)", "ta": "ரகசியக் காப்பு ஒப்பந்தம்", "hi": "गोपनीयता समझौता"}, "Services / vendor agreement": {"en": "Services / vendor agreement", "ta": "சேவை / வழங்குநர் ஒப்பந்தம்", "hi": "सेवा / आपूर्तिकर्ता समझौता"}, "Employment agreement": {"en": "Employment agreement", "ta": "வேலைவாய்ப்பு ஒப்பந்தம்", "hi": "रोजगार समझौता"}, "Lease / rental agreement": {"en": "Lease / rental agreement", "ta": "குத்தகை / வாடகை ஒப்பந்தம்", "hi": "पट्टा / किरायानामा"}, "Property transfer / mortgage": {"en": "Property transfer / mortgage", "ta": "சொத்து பரிமாற்றம் / அடமானம்", "hi": "संपत्ति हस्तांतरण / बंधक"}, "Judgment / court order": {"en": "Judgment / court order", "ta": "தீர்ப்பு / நீதிமன்ற ஆணை", "hi": "निर्णय / न्यायालय आदेश"}, "Petition / pleading": {"en": "Petition / pleading", "ta": "மனு / வாதுரை", "hi": "याचिका / अभिवचन"}, "Affidavit / declaration": {"en": "Affidavit / declaration", "ta": "உறுதிமொழிப் பத்திரம்", "hi": "शपथपत्र / घोषणा"}, "Act / rules / regulation": {"en": "Act / rules / regulation", "ta": "சட்டம் / விதிகள்", "hi": "अधिनियम / नियम"}, "Corporate / governance document": {"en": "Corporate / governance document", "ta": "நிறுவன நிர்வாக ஆவணம்", "hi": "कंपनी / शासन दस्तावेज़"}, "Will / trust instrument": {"en": "Will / trust instrument", "ta": "உயில் / அறக்கட்டளை ஆவணம்", "hi": "वसीयत / न्यास दस्तावेज़"}, "Power of attorney": {"en": "Power of attorney", "ta": "அதிகாரப் பத்திரம்", "hi": "मुख्तारनामा"}, "Legal notice": {"en": "Legal notice", "ta": "சட்ட அறிவிப்பு", "hi": "कानूनी नोटिस"}, "Privacy policy / terms": {"en": "Privacy policy / terms", "ta": "தனியுரிமைக் கொள்கை / விதிமுறைகள்", "hi": "गोपनीयता नीति / शर्तें"}, "IP / licence agreement": {"en": "IP / licence agreement", "ta": "அறிவுசார் சொத்து / உரிம ஒப்பந்தம்", "hi": "बौद्धिक संपदा / लाइसेंस समझौता"}, "Other contract": {"en": "Other contract", "ta": "பிற ஒப்பந்தம்", "hi": "अन्य अनुबंध"}, "Unknown / mixed document": {"en": "Unknown / mixed document", "ta": "தெரியாத / கலப்பு ஆவணம்", "hi": "अज्ञात / मिश्रित दस्तावेज़"}};
+        let interfaceLanguage = 'en';
+        let detectedCategory = 'unknown';
+        const originalUiText = new WeakMap();
+        function uiText(text) { return UI_TRANSLATIONS[text]?.[interfaceLanguage] || text; }
+        function localizeInterface() {
+            document.documentElement.lang = interfaceLanguage;
+            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+            let node;
+            while ((node = walker.nextNode())) {
+                if (node.parentElement?.closest('script,style,blockquote,.evidence-card,.heatmap-excerpt,.source-text,.summary-text')) continue;
+                const trimmed = node.textContent.trim();
+                const previous = originalUiText.get(node);
+                const original = previous && previous.rendered === node.textContent ? previous.source : (UI_TRANSLATIONS[trimmed] ? trimmed : null);
+                if (!original) continue;
+                const translated = uiText(original);
+                originalUiText.set(node, {source:original, rendered:translated});
+                if (node.textContent !== translated) node.textContent = translated;
+            }
+            document.getElementById('qa-input').placeholder = {en:'Ask a question about this document',ta:'இந்த ஆவணம் பற்றி கேள்வி கேளுங்கள்',hi:'इस दस्तावेज़ के बारे में प्रश्न पूछें'}[interfaceLanguage];
+            document.getElementById('clause-input').placeholder = {en:'Paste a contract clause for review',ta:'ஆய்வுக்கான ஒப்பந்தப் பிரிவை ஒட்டவும்',hi:'समीक्षा के लिए अनुबंध का खंड चिपकाएँ'}[interfaceLanguage];
+        }
+        function updateReviewScope() {
+            const category = document.getElementById('document-category').value || 'auto';
+            const profile = PROFILE_CATALOG[category === 'auto' ? detectedCategory : category];
+            const text = !profile || profile.id === 'unknown' ? 'Unknown or mixed document: select a category and confirm its scope.' :
+                profile.negotiable ? 'Confirm the category. AI output and translation require human review.' : 'This category is not a negotiable contract. Use summary and Q&A.';
+            document.getElementById('review-scope').textContent = uiText(text);
+            if (documentId && profile) document.getElementById('stat-type').textContent = profile.labels[interfaceLanguage];
+        }
+        function changeReviewPreferences() {
+            if (isUploading) return;
+            interfaceLanguage = document.getElementById('response-language').value || 'en';
+            documentEpoch += 1;
+            pendingRequests.forEach(controller => controller.abort());
+            pendingRequests.clear();
+            ['heatmap-container','summary-container','qa-output','negotiate-output','obligations-container','compare-container','visuals-container','visual-analysis-output'].forEach(id => {
+                document.getElementById(id).textContent = uiText('Preferences changed. Choose an analysis to continue.');
+            });
+            document.getElementById('analyze-visuals-button').disabled = false;
+            localizeInterface();
+            updateReviewScope();
+        }
+        function setPreferenceControlsDisabled(disabled) {
+            ['response-language','source-language','document-category'].forEach(id => { document.getElementById(id).disabled = disabled; });
+        }
+
         const API_HOST = '';
         let documentEpoch = 0;
         let documentId = null;
@@ -310,6 +373,8 @@
         function resetDocumentViews() {
             documentEpoch += 1;
             documentId = null;
+            detectedCategory = "unknown";
+            document.getElementById("review-scope").textContent = "";
             pendingRequests.forEach(controller => controller.abort());
             pendingRequests.clear();
             ['heatmap-container', 'summary-container', 'qa-output', 'negotiate-output',
@@ -333,6 +398,9 @@
             const controller = new AbortController();
             pendingRequests.set(url, controller);
             const headers = new Headers(options.headers || {});
+            headers.set('X-Response-Language', document.getElementById('response-language').value || 'en');
+            headers.set('X-Source-Language', document.getElementById('source-language').value || 'auto');
+            headers.set('X-Document-Category', document.getElementById('document-category').value || 'auto');
             if (documentId && !url.endsWith('/api/upload')) headers.set('X-Document-Id', documentId);
             const current = () => epoch === documentEpoch && pendingRequests.get(url) === controller && !controller.signal.aborted;
             try {
@@ -444,6 +512,7 @@
             if (!file || isUploading) return;
             resetDocumentViews();
             isUploading = true;
+            setPreferenceControlsDisabled(true);
             document.getElementById('file-input').disabled = true;
 
             document.getElementById('loading-spinner').classList.remove('hidden');
@@ -457,6 +526,8 @@
 
                 if (data.status === 'success') {
                     documentId = data.document_id;
+                    detectedCategory = data.category_id || "unknown";
+                    updateReviewScope();
                     isUploading = false;
                     const notices = [...(data.warnings || [])];
                     if (data.ocr_pages?.length) notices.unshift(`OCR used on page(s): ${data.ocr_pages.join(', ')}.`);
@@ -476,6 +547,7 @@
                 alert('Upload failed: ' + err.message);
             } finally {
                 isUploading = false;
+                setPreferenceControlsDisabled(false);
                 document.getElementById('file-input').disabled = false;
                 document.getElementById('file-input').value = '';
                 document.getElementById('loading-spinner').classList.add('hidden');
@@ -529,6 +601,8 @@
                 const response = await scopedFetch(`${API_HOST}/api/summary`, { credentials: 'include' });
                 const data = await readApiResponse(response);
                 const classification = data.classification || {};
+                detectedCategory = classification.category_id || detectedCategory;
+                updateReviewScope();
                 const focusAreas = Array.isArray(classification.target_risk_focus)
                     ? classification.target_risk_focus.join(', ')
                     : 'Not specified';
@@ -574,7 +648,8 @@
                     evidenceHtml = data.sources.map(s => `
                         <div class="evidence-card">
                             <div class="evidence-head"><span>📌 Source Evidence — [Page ${escapeHtml(s.page)}]</span><span>${escapeHtml(s.score_type)}: ${escapeHtml(s.score)}</span></div>
-                            <div style="font-size:0.85rem; color:var(--text-secondary);">${escapeHtml(s.text)}</div>
+                            <div class="source-text" style="font-size:0.85rem; color:var(--text-secondary);">${escapeHtml(s.text)}</div>
+                            ${s.retrieval_note ? `<div class="diagnostic">${escapeHtml(s.retrieval_note)}</div>` : ""}
                         </div>
                     `).join('');
                 }
@@ -644,7 +719,7 @@
                 let rows = items.map(o => `
                     <tr>
                         <td><strong>${escapeHtml(o.party)}</strong></td>
-                        <td>${escapeHtml(o.obligation)}</td>
+                        <td>${escapeHtml(o.obligation)}${o.evidence ? `<blockquote>${escapeHtml(o.evidence)}</blockquote>` : ""}</td>
                         <td><span style="color:var(--accent-amber);">${escapeHtml(o.deadline_frequency)}</span></td>
                         <td><span style="color:var(--accent-red);">${escapeHtml(o.consequence)}</span></td>
                         <td><span class="badge-low">Page ${escapeHtml(o.page)}</span></td>
@@ -756,7 +831,12 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', loadApiStatus);
+        document.addEventListener('DOMContentLoaded', () => {
+            localizeInterface();
+            updateReviewScope();
+            new MutationObserver(localizeInterface).observe(document.body, {childList:true,subtree:true,characterData:true});
+            loadApiStatus();
+        });
     </script>
 </body>
 </html>

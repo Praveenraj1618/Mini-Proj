@@ -119,3 +119,37 @@ test('explicit AI check shows safe diagnostic and re-enables its button', async 
     assert.ok(app.document.getElementById('llm-status').textContent.includes('HTTP 404'));
     assert.equal(app.document.getElementById('check-ai-button').disabled, false);
 });
+
+test('selected language, OCR and category travel with API calls', async () => {
+    let sent;
+    const app=setup(async (url,options)=>{sent=options.headers;return response('Answer');});
+    app.document.getElementById('response-language').value='ta';
+    app.document.getElementById('source-language').value='hi';
+    app.document.getElementById('document-category').value='judgment';
+    await app.run('executeQA()');
+    assert.equal(sent.get('X-Response-Language'),'ta');
+    assert.equal(sent.get('X-Source-Language'),'hi');
+    assert.equal(sent.get('X-Document-Category'),'judgment');
+});
+
+test('language change discards pending answer and keeps document identity', async () => {
+    const network=deferred();const app=setup(()=>network.promise);
+    app.run('localizeInterface = () => {};');
+    const pending=app.run('executeQA()');
+    app.document.getElementById('response-language').value='hi';
+    app.run('changeReviewPreferences()');
+    network.resolve(response('STALE ENGLISH'));await pending;
+    assert.equal(app.run('documentId'),'document-one');
+    assert.ok(!app.document.getElementById('qa-output').innerHTML.includes('STALE'));
+    assert.match(app.document.getElementById('qa-output').textContent,/विकल्प/);
+});
+
+test('Tamil judgment selection explains negotiation restriction', () => {
+    const app=setup(async()=>response(''));
+    app.run('localizeInterface = () => {};');
+    app.document.getElementById('response-language').value='ta';
+    app.document.getElementById('document-category').value='judgment';
+    app.run('changeReviewPreferences()');
+    assert.match(app.document.getElementById('review-scope').textContent,/பேச்சுவார்த்தை/);
+    assert.equal(app.document.getElementById('stat-type').textContent,'தீர்ப்பு / நீதிமன்ற ஆணை');
+});

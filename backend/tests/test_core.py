@@ -266,14 +266,10 @@ def test_heatmap_uses_one_structured_llm_request(monkeypatch):
             "recommendation": "Confirm the allocation with counsel.",
         }
         for title in (
-            "1. Definitions & Scope",
-            "2. Payment & Commercial Terms",
-            "3. Liability & Limitation of Liability",
-            "4. Intellectual Property Rights",
-            "5. Confidentiality & Non-Disclosure",
-            "6. Termination & Remedies",
-            "7. Restrictive Covenants",
-            "8. Dispute Resolution & Governing Law",
+            "Parties purpose and scope",
+            "Rights duties payment and deadlines",
+            "Exceptions liability and remedies",
+            "Term termination and dispute clauses",
         )
     ]
     client = StaticResponseClient(content=json.dumps(items))
@@ -287,7 +283,7 @@ def test_heatmap_uses_one_structured_llm_request(monkeypatch):
 
     heatmap = reviewer.generate_clause_risk_heatmap()
 
-    assert len(heatmap) == 8
+    assert len(heatmap) == 4
     assert client.calls == 1
     assert client.bound_max_tokens == 2600
     assert all(item["risk_level"] == "MODERATE" for item in heatmap)
@@ -388,7 +384,7 @@ def test_raw_upload_rejects_non_pdf_content():
 
 
 def test_api_sessions_are_isolated_and_compare_uses_second_upload(monkeypatch):
-    def fake_build_reviewer(file_data, filename):
+    def fake_build_reviewer(file_data, filename, source_language="auto"):
         text = file_data.decode("latin-1")
         return LegalReviewer(make_document(filename, text), None), 1
 
