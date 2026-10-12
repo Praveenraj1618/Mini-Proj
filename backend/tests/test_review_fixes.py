@@ -202,7 +202,7 @@ def scan_bytes():
 
 def test_real_ocr_extracts_scanned_payment_and_preserves_page():
     data = scan_bytes()
-    loaded = LegalDocumentLoader(ocr_enabled=True).load_pdf(data, 'scan.pdf')
+    loaded = LegalDocumentLoader(ocr_enabled=True, source_language='en').load_pdf(data, 'scan.pdf')
     if loaded.warnings and not loaded.ocr_pages:
         pytest.skip('Tesseract language data unavailable; run in the OCR-enabled test environment')
     assert loaded.ocr_pages == [1]
@@ -338,7 +338,7 @@ def test_real_api_isolates_uploads_rejects_stale_ids_and_serves_visuals(monkeypa
 def test_scanned_pdf_can_build_api_reviewer(monkeypatch):
     from app_api import LegalAPIRequestHandler
     monkeypatch.setattr(LegalVectorStore, 'embeddings', property(lambda self: LocalTestEmbeddings()))
-    reviewer, count = LegalAPIRequestHandler._build_reviewer(scan_bytes(), 'scan.pdf')
+    reviewer, count = LegalAPIRequestHandler._build_reviewer(scan_bytes(), 'scan.pdf', 'en')
     try:
         assert count > 0
         assert reviewer.document.ocr_pages == [1]

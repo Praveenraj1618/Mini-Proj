@@ -37,6 +37,9 @@ SESSION_DATA: Dict[str, Dict[str, Any]] = {}
 SESSION_LOCK = threading.RLock()
 
 
+from core.review_localization import localize_payload
+from core.review_profiles import LANGUAGES, OCR_LANGUAGES, PROFILES
+
 class RequestError(Exception):
     def __init__(self, message: str, status: int = 400):
         super().__init__(message)
@@ -113,11 +116,28 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
     def _require_reviewer(self):
         reviewer = self._session().get("doc1_reviewer")
         if reviewer is None:
-            raise RequestError("No contract is loaded. Upload one first.")
+            raise RequestError("No document is loaded. Upload one first.")
         requested_id = self.headers.get("X-Document-Id")
         if requested_id and requested_id != reviewer.document_id:
             raise RequestError("The document changed. Retry using the current upload.", 409)
+        self._apply_preferences(reviewer)
         return reviewer
+
+    def _preferences(self):
+        language = self.headers.get('X-Response-Language', 'en')
+        category = self.headers.get('X-Document-Category', 'auto')
+        if language not in LANGUAGES or (category != 'auto' and category not in PROFILES):
+            raise RequestError('Unsupported response language or document category.')
+        return language, category
+
+    def _apply_preferences(self, reviewer):
+        reviewer.set_preferences(*self._preferences())
+
+    def _upload_language(self):
+        language = self.headers.get('X-Source-Language', 'auto')
+        if language not in OCR_LANGUAGES:
+            raise RequestError('Unsupported source language.')
+        return language
 
     def _set_headers(self, status: int, content_type: str, content_length: int = 0):
         self._response_started = True
@@ -136,7 +156,7 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Credentials", "true")
             self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Upload-Filename, X-Document-Id")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Upload-Filename, X-Document-Id, X-Response-Language, X-Source-Language, X-Document-Category")
         self.send_header("Content-Type", content_type)
         if content_length:
             self.send_header("Content-Length", str(content_length))
@@ -160,6 +180,7 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
             self.log_message("Client disconnected while receiving %s; response stopped.", self.path)
 
     def _send_json(self, data: Any, status: int = 200):
+        data = localize_payload(data, getattr(self, "headers", {}).get("X-Response-Language", "en"))
         encoded = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self._send_bytes(encoded, "application/json; charset=utf-8", status)
 
@@ -218,15 +239,15 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
         return file_data, safe_name
 
     @staticmethod
-    def _build_reviewer(file_data: bytes, filename: str) -> Tuple[LegalReviewer, int]:
+    def _build_reviewer(file_data: bytes, filename: str, source_language: str = "auto") -> Tuple[LegalReviewer, int]:
         try:
-            document = LegalDocumentLoader().load_pdf(file_data, file_name=filename)
+            document = LegalDocumentLoader(source_language=source_language).load_pdf(file_data, file_name=filename)
         except (ValueError, RuntimeError) as exc:
             raise RequestError("The PDF could not be read. Check that it is valid and unlocked.", 422) from exc
         chunks = LegalChunker(chunk_size=CHUNK_SIZE, chunk_overlap=CHUNK_OVERLAP).chunk_document(document)
         if not chunks:
             detail = " ".join(document.warnings)
-            raise RequestError("The PDF contains no readable contract text. " + detail, 422)
+            raise RequestError("The PDF contains no readable document text. " + detail, 422)
         vector_store = LegalVectorStore()
         try:
             vector_store.build_index(chunks)
@@ -265,6 +286,8 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
                     "llm_providers": configured_llm_providers(),
                     "vision_providers": configured_llm_providers(vision=True),
                     "ocr_enabled": OCR_ENABLED,
+                    "languages": LANGUAGES,
+                    "document_profiles": list(PROFILES.values()),
                     "retrieval": {
                         "chunk_size": CHUNK_SIZE, "chunk_overlap": CHUNK_OVERLAP,
                         "top_k": RETRIEVAL_TOP_K, "dense_k": TOP_K_DENSE, "bm25_k": TOP_K_BM25,
@@ -336,8 +359,11 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
                 return
 
             if path == "/api/upload":
+                self._preferences()
+                source_language = self._upload_language()
                 file_data, filename = self._read_uploaded_pdf()
-                reviewer, chunk_count = self._build_reviewer(file_data, filename)
+                reviewer, chunk_count = self._build_reviewer(file_data, filename, source_language)
+                self._apply_preferences(reviewer)
                 session = self._session()
                 self._close_reviewers(session)
                 session["doc1_reviewer"] = reviewer
@@ -346,6 +372,9 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
                 self._send_json({
                     "status": "success",
                     "file_name": reviewer.document.file_name,
+                    "category_id": classification.get("category_id", "unknown"),
+                    "negotiation_supported": classification.get("negotiation_supported", False),
+                    "languages": reviewer.document.languages,
                     "doc_type": classification.get("doc_type", "Legal Agreement"),
                     "pages": reviewer.document.total_pages,
                     "words": reviewer.document.total_words,
@@ -376,6 +405,7 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
                         file_path="<none>", file_name="standalone-clause", total_pages=0
                     )
                     reviewer = LegalReviewer(empty_document, None)
+                self._apply_preferences(reviewer)
                 self._send_json(reviewer.generate_negotiation_strategy(clause))
                 return
 
@@ -387,7 +417,7 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
             if path == "/api/compare":
                 reviewer_v1 = self._require_reviewer()
                 file_data, filename = self._read_uploaded_pdf()
-                reviewer_v2, _ = self._build_reviewer(file_data, filename)
+                reviewer_v2, _ = self._build_reviewer(file_data, filename, self._upload_language())
                 try:
                     self._send_json(LegalReviewer.compare_contracts(reviewer_v1, reviewer_v2))
                 finally:

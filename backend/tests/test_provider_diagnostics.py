@@ -8,7 +8,7 @@ import pytest
 import config
 from app_api import LegalAPIRequestHandler
 from core.legal_reviewer import LegalReviewer
-from core.document_loader import LoadedDocument
+from core.document_loader import LoadedDocument, PageData
 from core.llm_diagnostics import LLMProviderError, provider_diagnostic
 import core.legal_reviewer as reviewer_module
 
@@ -69,6 +69,7 @@ def test_negotiation_exposes_parse_failure_separately(monkeypatch):
 
 def test_empty_obligation_fallback_still_has_failure_metadata(monkeypatch):
     r = reviewer()
+    r.document.pages = [PageData(1, "No explicit duties here.", 24, 0)]
     r._llm_candidates = [('Groq', Client(error(401)))]
     monkeypatch.setattr(reviewer_module, 'check_api_key_configured', lambda: True)
     assert r.extract_obligations() == []

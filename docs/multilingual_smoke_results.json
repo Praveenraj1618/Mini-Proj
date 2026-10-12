@@ -1,0 +1,92 @@
+{
+  "ocr": [
+    {
+      "language": "en",
+      "input": "native",
+      "method": "native",
+      "warnings": []
+    },
+    {
+      "language": "en",
+      "input": "scan",
+      "method": "ocr",
+      "warnings": []
+    },
+    {
+      "language": "ta",
+      "input": "native",
+      "method": "ocr-recovery",
+      "warnings": [
+        "Page 1: native text encoding may be damaged or differ from the selected language; OCR recovery requested."
+      ]
+    },
+    {
+      "language": "ta",
+      "input": "scan",
+      "method": "ocr",
+      "warnings": []
+    },
+    {
+      "language": "hi",
+      "input": "native",
+      "method": "ocr-recovery",
+      "warnings": [
+        "Page 1: native text encoding may be damaged or differ from the selected language; OCR recovery requested."
+      ]
+    },
+    {
+      "language": "hi",
+      "input": "scan",
+      "method": "ocr",
+      "warnings": []
+    }
+  ],
+  "retrieval": [
+    {
+      "document": "en",
+      "query": "en",
+      "top_page": 1
+    },
+    {
+      "document": "en",
+      "query": "ta",
+      "top_page": 1
+    },
+    {
+      "document": "en",
+      "query": "hi",
+      "top_page": 1
+    },
+    {
+      "document": "ta",
+      "query": "en",
+      "top_page": 1
+    },
+    {
+      "document": "ta",
+      "query": "ta",
+      "top_page": 1
+    },
+    {
+      "document": "ta",
+      "query": "hi",
+      "top_page": 1
+    },
+    {
+      "document": "hi",
+      "query": "en",
+      "top_page": 1
+    },
+    {
+      "document": "hi",
+      "query": "ta",
+      "top_page": 1
+    },
+    {
+      "document": "hi",
+      "query": "hi",
+      "top_page": 1
+    }
+  ],
+  "scope": "Synthetic pipeline checks only; no legal accuracy or live LLM evaluation."
+}
