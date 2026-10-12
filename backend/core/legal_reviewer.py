@@ -177,7 +177,29 @@ class LegalReviewer(ReviewWorkflow):
 
     def _invoke_llm(self, messages, max_tokens: int = 700, vision: bool = False) -> str:
         """Invoke configured providers with bounded output, retry, and failover."""
-        messages = [SystemMessage(content=language_instruction(self.response_language) + "\nDocument family: " + self.profile["labels"]["en"] + "\nReview topics: " + "; ".join(self.profile["topics"]))] + list(messages)
+        # Merge all system instructions into one message. Some providers prioritize
+        # the last system message, so separate task prompts could override the
+        # selected Tamil/Hindi output language.
+        supplied_messages = list(messages)
+        supplied_system = "\n\n".join(
+            str(message.content) for message in supplied_messages
+            if isinstance(message, SystemMessage) and message.content
+        )
+        task_messages = [
+            message for message in supplied_messages
+            if not isinstance(message, SystemMessage)
+        ]
+        language_name = {"en": "English", "ta": "Tamil", "hi": "Hindi"}.get(
+            self.response_language, "English"
+        )
+        system_parts = [
+            language_instruction(self.response_language),
+            f"MANDATORY OUTPUT LANGUAGE: {language_name}. Write all explanatory prose, headings, risk explanations, recommendations, summaries, and answers in {language_name}. Do not answer in English unless English is the selected language. Preserve exact source quotations verbatim, and preserve JSON keys, risk enums, names, dates, amounts, and [Page N] citations.",
+            "Document family: " + self.profile["labels"]["en"],
+            "Review topics: " + "; ".join(self.profile["topics"]),
+            supplied_system,
+        ]
+        messages = [SystemMessage(content="\n\n".join(part for part in system_parts if part))] + task_messages
         failures = []
         diagnostics = []
         self._last_provider_error = None
@@ -538,7 +560,8 @@ in this exact order: {json.dumps(category_names)}
 
 Each object must use this schema:
 {{
-  "clause_title": "exact category name",
+  "clause_title": "exact category name in English, unchanged for matching",
+  "display_title": "short user-facing heading in the selected response language",
   "risk_level": "LOW" or "MODERATE" or "HIGH" or "REVIEW REQUIRED",
   "page": page_number_int,
   "excerpt": "exact 1-2 sentence quote from the supplied evidence",
@@ -583,7 +606,8 @@ using the most relevant cited excerpt instead of inventing contract language.
 
                 heatmap_results.append({
                     "category": cat_name,
-                    "clause_title": cat_name,
+                    "clause_title": str(item.get("display_title") or cat_name),
+                    "category_id": cat_name,
                     "risk_level": risk_level,
                     "page": page,
                     "excerpt": str(item.get("excerpt") or top_docs[0].page_content[:150] + "..."),
