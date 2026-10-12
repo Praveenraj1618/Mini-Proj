@@ -182,14 +182,14 @@ main{height:auto;min-height:0;overflow:visible}
             </aside>
 
             <section class="analysis-stack" aria-label="Document analysis">
-                <div class="tab-bar">
-                    <button class="tab-btn active" data-tab="heatmap-tab" onclick="switchTab('heatmap-tab', this)">Risk review</button>
-                    <button class="tab-btn" data-tab="summary-tab" onclick="switchTab('summary-tab', this)">Summary</button>
-                    <button class="tab-btn" data-tab="qa-tab" onclick="switchTab('qa-tab', this)">Ask AI</button>
-                    <button class="tab-btn" data-tab="negotiate-tab" onclick="switchTab('negotiate-tab', this)">Negotiation</button>
-                    <button class="tab-btn" data-tab="obligations-tab" onclick="switchTab('obligations-tab', this)">Obligations</button>
-                    <button class="tab-btn" data-tab="visuals-tab" onclick="switchTab('visuals-tab', this); loadVisuals()">Visuals & OCR</button>
-                    <button class="tab-btn" data-tab="compare-tab" onclick="switchTab('compare-tab', this)">Compare</button>
+                <div class="tab-bar" role="tablist" aria-label="Document analysis tools">
+                    <button type="button" class="tab-btn active" role="tab" aria-selected="true" aria-controls="heatmap-tab" data-tab="heatmap-tab" onclick="switchTab('heatmap-tab', this)">Risk review</button>
+                    <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="summary-tab" data-tab="summary-tab" onclick="switchTab('summary-tab', this)">Summary</button>
+                    <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="qa-tab" data-tab="qa-tab" onclick="switchTab('qa-tab', this)">Ask AI</button>
+                    <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="negotiate-tab" data-tab="negotiate-tab" onclick="switchTab('negotiate-tab', this)">Negotiation</button>
+                    <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="obligations-tab" data-tab="obligations-tab" onclick="switchTab('obligations-tab', this)">Obligations</button>
+                    <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="visuals-tab" data-tab="visuals-tab" onclick="switchTab('visuals-tab', this); loadVisuals()">Visuals & OCR</button>
+                    <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="compare-tab" data-tab="compare-tab" onclick="switchTab('compare-tab', this)">Compare</button>
                 </div>
 
                 <div id="heatmap-tab" class="tab-content">
@@ -470,13 +470,31 @@ main{height:auto;min-height:0;overflow:visible}
         }
 
         function switchTab(tabId, sourceButton = null) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             const target = document.getElementById(tabId);
             if (!target) return;
-            target.classList.remove('hidden');
-            const button = sourceButton || document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
-            if (button) button.classList.add('active');
+
+            document.querySelectorAll('.tab-content').forEach(el => {
+                el.classList.toggle('hidden', el !== target);
+                el.setAttribute('aria-hidden', el !== target ? 'true' : 'false');
+            });
+
+            // Derive the selected state from the visible panel, not from the
+            // last button clicked. This keeps it correct when analysis functions
+            // (e.g. loadHeatmap/loadSummary) navigate programmatically.
+            document.querySelectorAll('.tab-btn').forEach(button => {
+                const selected = button.dataset.tab === tabId;
+                button.classList.toggle('active', selected);
+                button.setAttribute('aria-selected', selected ? 'true' : 'false');
+                button.setAttribute('role', 'tab');
+                button.setAttribute('tabindex', selected ? '0' : '-1');
+            });
+
+            target.setAttribute('role', 'tabpanel');
+            target.setAttribute('aria-hidden', 'false');
+            const activeButton = sourceButton && sourceButton.dataset.tab === tabId
+                ? sourceButton
+                : document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+            activeButton?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
         }
 
         let clauseIqPreviewUrl = null;
