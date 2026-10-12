@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: clauseiq
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /api/status
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: LLM_PROVIDER_ORDER
+        value: groq,gemini
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OCR_ENABLED
+        value: "true"
+      - key: OCR_LANGUAGE
+        value: eng+tam+hin
+      - key: OCR_TESSDATA
+        value: /usr/share/tesseract-ocr/5/tessdata
+      - key: EMBEDDING_MODEL
+        value: intfloat/multilingual-e5-small
+      - key: MAX_UPLOAD_MB
+        value: "20"
