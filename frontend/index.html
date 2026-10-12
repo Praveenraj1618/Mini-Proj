@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Legal Document Intelligence & Negotiation Platform</title>
+    <title>ClauseIQ — Legal Intelligence Workspace</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
 :root{color-scheme:light;--bg-dark:#f8f7f3;--card-bg:#fff;--card-border:#e5e7eb;--accent-cyan:#8e6b26;--accent-purple:#8e6b26;--accent-amber:#b8862b;--accent-red:#b42318;--accent-green:#16794b;--text-primary:#17243b;--text-secondary:#687386;--navy:#17243b;--gold:#d6ae58;--gold-soft:#f7efd9;--surface:#fff;--surface-muted:#f5f4ef;--focus:#9b762c}
@@ -38,13 +38,49 @@ main{max-width:1800px;padding:1.15rem clamp(1rem,2vw,2rem);gap:1rem}
 @media(max-width:1050px){.dashboard-grid{grid-template-columns:minmax(290px,.8fr) minmax(0,1.2fr)}.sidebar-stack,.analysis-stack{max-height:none;position:static}}
 @media(max-width:760px){main{padding:.8rem}.dashboard-grid{grid-template-columns:1fr}.sidebar-stack,.analysis-stack{max-height:none;overflow:visible;position:static}.preview-frame-wrap{height:55vh;min-height:300px}.workspace-intro{display:block}.preferences-card .review-controls{grid-template-columns:1fr}.tab-bar{position:static;flex-wrap:nowrap}.preview-footer{flex-direction:column;gap:.2rem}}
 
+
+/* Final layout containment and brand-mark refinements */
+.logo-icon{display:grid;place-items:center;overflow:hidden}
+.logo-icon svg{display:block;width:34px;height:34px;max-width:100%}
+.logo-title{overflow-wrap:anywhere}
+.header-actions{min-width:0;max-width:100%}
+main,.glass-card,.dashboard-grid,.sidebar-stack,.analysis-stack,.tab-content,.heatmap-item,.summary-grid,.review-controls{min-width:0;max-width:100%}
+.dashboard-grid>*{min-width:0}
+.glass-card{overflow-wrap:anywhere}
+button,.btn-primary,.btn-secondary,.tab-btn,#check-ai-button{box-sizing:border-box;max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;line-height:1.35}
+.quick-actions button{width:100%;justify-content:flex-start;text-align:left}
+.tab-bar{min-width:0;max-width:100%;align-items:stretch}
+.tab-btn{flex:1 1 auto;min-width:max-content}
+.review-controls select,input,textarea{box-sizing:border-box;max-width:100%;min-width:0}
+.custom-table{width:100%;table-layout:fixed;overflow-wrap:anywhere}
+.custom-table th,.custom-table td{overflow-wrap:anywhere;word-break:break-word}
+.chat-input-group{min-width:0;max-width:100%}
+.chat-input-group>*{min-width:0;max-width:100%}
+#visuals-container,#visual-analysis-output,#compare-container,#obligations-container,#qa-output,#negotiate-output,#heatmap-container,#summary-container{min-width:0;max-width:100%;overflow-wrap:anywhere}
+#visuals-container img,#visuals-container canvas,#visuals-container svg{max-width:100%;height:auto}
+@media(max-width:1100px){
+  header{flex-wrap:wrap}
+  .logo-group{flex:1 1 260px}
+  .header-actions{flex:1 1 100%;justify-content:flex-start}
+  .dashboard-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.35fr)}
+}
+@media(max-width:760px){
+  .logo-group{align-items:flex-start}
+  .logo-sub{font-size:.72rem}
+  .header-actions>*{max-width:100%}
+  .status-badge{white-space:normal}
+  .tab-bar{overflow-x:auto;flex-wrap:nowrap}
+  .tab-btn{flex:0 0 auto}
+  .chat-input-group .btn-primary{width:100%}
+}
+
 </style>
 </head>
 <body>
 
     <header>
         <div class="logo-group">
-            <span class="logo-icon" aria-hidden="true">⚖️</span>
+            <span class="logo-icon" aria-hidden="true"><svg viewBox="0 0 48 48" role="img" aria-label="ClauseIQ mark"><path d="M24 5 39 11v11c0 10-6.2 16.5-15 21C15.2 38.5 9 32 9 22V11L24 5Z" fill="none" stroke="#D6AE58" stroke-width="1.8"/><path d="M24 13v20M16 17h16M14 17l-5 10h10l-5-10Zm20 0-5 10h10l-5-10ZM19 35h10" fill="none" stroke="#F8F7F3" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24" cy="17" r="2" fill="#D6AE58"/></svg></span>
             <div>
                 <div class="logo-title">ClauseIQ</div>
                 <div class="logo-sub">Legal intelligence, backed by evidence · English · தமிழ் · हिन्दी</div>
