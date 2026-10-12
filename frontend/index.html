@@ -475,7 +475,7 @@ main{height:auto;min-height:0;overflow:visible}
 
             document.querySelectorAll('.tab-content').forEach(el => {
                 el.classList.toggle('hidden', el !== target);
-                el.setAttribute('aria-hidden', el !== target ? 'true' : 'false');
+                el.setAttribute?.('aria-hidden', el !== target ? 'true' : 'false');
             });
 
             // Derive the selected state from the visible panel, not from the
@@ -484,13 +484,13 @@ main{height:auto;min-height:0;overflow:visible}
             document.querySelectorAll('.tab-btn').forEach(button => {
                 const selected = button.dataset.tab === tabId;
                 button.classList.toggle('active', selected);
-                button.setAttribute('aria-selected', selected ? 'true' : 'false');
-                button.setAttribute('role', 'tab');
-                button.setAttribute('tabindex', selected ? '0' : '-1');
+                button.setAttribute?.('aria-selected', selected ? 'true' : 'false');
+                button.setAttribute?.('role', 'tab');
+                button.setAttribute?.('tabindex', selected ? '0' : '-1');
             });
 
-            target.setAttribute('role', 'tabpanel');
-            target.setAttribute('aria-hidden', 'false');
+            target.setAttribute?.('role', 'tabpanel');
+            target.setAttribute?.('aria-hidden', 'false');
             const activeButton = sourceButton && sourceButton.dataset.tab === tabId
                 ? sourceButton
                 : document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
