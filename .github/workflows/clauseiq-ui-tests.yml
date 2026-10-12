@@ -44,7 +44,7 @@ jobs:
           }
           if (!html.includes('ClauseIQ')) throw new Error('ClauseIQ branding is missing');
           if (!html.includes('--gold:#d6ae58')) throw new Error('Gold theme token is missing');
-          const scripts = [...html.matchAll(/<script>([\\s\\S]*?)<\\/script>/g)];
+          const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
           if (!scripts.length) throw new Error('No inline application script found');
           for (const script of scripts) new vm.Script(script[1], { filename: 'frontend/index.html inline script' });
           console.log('UI structure and inline JavaScript syntax checks passed.');
