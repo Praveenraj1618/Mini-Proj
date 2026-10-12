@@ -23,6 +23,21 @@ main{flex:1;width:100%;max-width:1680px;margin:0 auto;padding:clamp(1rem,2.6vw,2
 .chat-box{display:flex;flex-direction:column;gap:1rem;min-height:300px}.chat-input-group{display:flex;gap:.55rem;align-items:stretch}.chat-input{width:100%;min-width:0;background:#fff;border:1px solid #d9dee7;border-radius:10px;padding:.8rem .9rem;color:#17243b;font-family:inherit;font-size:.88rem;outline:none}.chat-input::placeholder{color:#98a1b1}.chat-input:focus{border-color:#b18b3b;box-shadow:0 0 0 3px rgba(214,174,88,.15)}.evidence-card{background:#fbfaf6;border:1px solid #e6d9b5;border-radius:10px;padding:1rem;margin-top:.75rem}.evidence-head{font-size:.8rem;font-weight:800;color:#805f20;margin-bottom:.3rem;display:flex;justify-content:space-between;gap:.5rem}.custom-table{width:100%;border-collapse:collapse;margin-top:.5rem;font-size:.84rem}.custom-table th{text-align:left;padding:.75rem;background:#f4f3ef;color:#344054;border-bottom:1px solid #e1e4e9}.custom-table td{padding:.75rem;border-bottom:1px solid #eceef2;vertical-align:top}.custom-table tr:hover td{background:#fcfbf8}
 .hidden{display:none!important}.spinner{border:3px solid #ece7d9;border-top:3px solid #b8862b;border-radius:50%;width:24px;height:24px;animation:spin 1s linear infinite;display:inline-block}@keyframes spin{to{transform:rotate(360deg)}}#obligations-container{overflow-x:auto}blockquote{margin:.7rem 0;padding:.6rem .8rem;border-left:3px solid #d6ae58;background:#fbfaf6;white-space:pre-wrap;color:#475467}html:lang(ta),html:lang(hi){line-height:1.8}#upload-notices{font-size:.82rem;color:#667085}#loading-spinner{color:#8e6b26}#visuals-container img{max-width:100%;height:auto;border-radius:10px}
 @media(min-width:1200px){.dashboard-grid{grid-template-columns:minmax(280px,320px) minmax(0,1fr)}}@media(max-width:980px){header{align-items:flex-start}.header-actions{max-width:100%}.dashboard-grid{grid-template-columns:minmax(235px,.8fr) minmax(0,1.6fr)}.workspace-hint{display:none}}@media(max-width:760px){header{position:relative;flex-direction:column;align-items:stretch;padding:1rem}.logo-title{font-size:1rem}.header-actions{justify-content:flex-start}.legal-notice{white-space:normal}.status-badge{max-width:100%}main{padding:1rem;gap:1rem}.workspace-intro{align-items:flex-start;flex-direction:column}.review-controls{grid-template-columns:1fr}#review-scope{grid-column:auto}.dashboard-grid{grid-template-columns:1fr}.sidebar-stack{display:grid;grid-template-columns:1fr}.tab-bar{margin-inline:-.1rem}.summary-grid{grid-template-columns:1fr}.chat-input-group{flex-direction:column}.chat-input-group .btn-primary{width:100%}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* True split-view workspace */
+main{max-width:1800px;padding:1.15rem clamp(1rem,2vw,2rem);gap:1rem}
+.workspace-intro{align-items:center;padding:.15rem 0}.page-title{font-size:clamp(1.45rem,2vw,2rem);margin:.2rem 0}.page-description{font-size:.84rem}.workspace-hint{display:none}
+.dashboard-grid{grid-template-columns:minmax(340px,.82fr) minmax(0,1.38fr);gap:1rem;align-items:start}
+.sidebar-stack{position:sticky;top:90px;max-height:calc(100vh - 105px);overflow-y:auto;padding-right:.2rem;scrollbar-width:thin}
+.analysis-stack{min-width:0;max-height:calc(100vh - 105px);overflow-y:auto;padding-right:.15rem;scrollbar-width:thin}
+.document-preview-card{padding:1rem}.preview-empty{min-height:260px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:.6rem;padding:2rem;text-align:center;border:1px dashed #d6d9df;border-radius:12px;background:#fafbfc;color:#667085;font-size:.82rem}.preview-empty strong{color:#344054;font-size:.9rem}.preview-empty-icon{font-size:2rem;color:#a7833a}
+.preview-frame-wrap{height:clamp(300px,48vh,680px);border:1px solid #dfe3e9;border-radius:10px;overflow:hidden;background:#eef0f3}.preview-frame-wrap iframe{width:100%;height:100%;border:0;background:white}.preview-footer{display:flex;justify-content:space-between;gap:.75rem;color:#7a8494;font-size:.68rem;margin-top:.65rem}
+.preferences-card .review-controls{grid-template-columns:1fr;padding:0;border:0;box-shadow:none;gap:.75rem}.preferences-card .review-controls label{font-size:.75rem}.preferences-card #review-scope{grid-column:auto;margin-top:.1rem}
+.tab-bar{position:sticky;top:0;z-index:5;flex-wrap:wrap;background:#f0eee7}.tab-btn{font-size:.75rem;padding:.58rem .72rem}.analysis-stack>.tab-content>.glass-card{min-height:260px}#heatmap-container{gap:.65rem}.heatmap-item{padding:.9rem}
+@media(min-width:1400px){.dashboard-grid{grid-template-columns:minmax(390px,.9fr) minmax(0,1.35fr)}}
+@media(max-width:1050px){.dashboard-grid{grid-template-columns:minmax(290px,.8fr) minmax(0,1.2fr)}.sidebar-stack,.analysis-stack{max-height:none;position:static}}
+@media(max-width:760px){main{padding:.8rem}.dashboard-grid{grid-template-columns:1fr}.sidebar-stack,.analysis-stack{max-height:none;overflow:visible;position:static}.preview-frame-wrap{height:55vh;min-height:300px}.workspace-intro{display:block}.preferences-card .review-controls{grid-template-columns:1fr}.tab-bar{position:static;flex-wrap:nowrap}.preview-footer{flex-direction:column;gap:.2rem}}
+
 </style>
 </head>
 <body>
@@ -52,12 +67,6 @@ main{flex:1;width:100%;max-width:1680px;margin:0 auto;padding:clamp(1rem,2.6vw,2
             </div>
             <div class="workspace-hint"><span aria-hidden="true">✦</span> Your document stays at the center of the review</div>
         </section>
-        <div class="glass-card review-controls" aria-label="Document review settings">
-            <label><span>Response language</span><select id="response-language" onchange="changeReviewPreferences()"><option value="en">English</option><option value="ta">தமிழ்</option><option value="hi">हिन्दी</option></select></label>
-            <label><span>PDF language / OCR (before upload)</span><select id="source-language"><option value="auto">Auto / mixed</option><option value="en">English</option><option value="ta">தமிழ் + English</option><option value="hi">हिन्दी + English</option></select></label>
-            <label><span>Document category</span><select id="document-category" onchange="changeReviewPreferences()"><option value="auto">Auto-detect (confirm result)</option><option value="nda">Non-Disclosure Agreement (NDA)</option><option value="services">Services / vendor agreement</option><option value="employment">Employment agreement</option><option value="lease">Lease / rental agreement</option><option value="property">Property transfer / mortgage</option><option value="judgment">Judgment / court order</option><option value="pleading">Petition / pleading</option><option value="affidavit">Affidavit / declaration</option><option value="legislation">Act / rules / regulation</option><option value="corporate">Corporate / governance document</option><option value="will">Will / trust instrument</option><option value="power_of_attorney">Power of attorney</option><option value="notice">Legal notice</option><option value="policy">Privacy policy / terms</option><option value="ip_license">IP / licence agreement</option><option value="general_contract">Other contract</option><option value="unknown">Unknown / mixed document</option></select></label>
-            <p id="review-scope" role="status"></p>
-        </div>
         <div class="dashboard-grid">
             <aside class="sidebar-stack" aria-label="Document workspace">
                 <div class="glass-card">
@@ -83,6 +92,31 @@ main{flex:1;width:100%;max-width:1680px;margin:0 auto;padding:clamp(1rem,2.6vw,2
                         <div class="stat-box"><div class="stat-label">Words</div><div class="stat-val" id="stat-words">-</div></div>
                         <div class="stat-box"><div class="stat-label">Chunks</div><div class="stat-val" id="stat-chunks">-</div></div>
                     </div>
+                </div>
+
+                <div class="glass-card document-preview-card">
+                    <div class="card-header">
+                        <span class="card-title">Document preview</span>
+                        <span class="section-note" id="preview-status">PDF not loaded</span>
+                    </div>
+                    <div id="document-preview-empty" class="preview-empty">
+                        <span class="preview-empty-icon" aria-hidden="true">▤</span>
+                        <strong>Your document will appear here</strong>
+                        <span>Upload a PDF to read its pages beside the AI analysis.</span>
+                    </div>
+                    <div id="document-preview-frame-wrap" class="preview-frame-wrap hidden">
+                        <iframe id="document-preview-frame" title="Uploaded legal PDF preview"></iframe>
+                    </div>
+                    <div class="preview-footer"><span>Original document</span><span>Use the PDF viewer controls to navigate pages</span></div>
+                </div>
+                <div class="glass-card preferences-card">
+                    <div class="card-header"><span class="card-title">Review preferences</span><span class="section-note">Language & category</span></div>
+        <div class="glass-card review-controls" aria-label="Document review settings">
+            <label><span>Response language</span><select id="response-language" onchange="changeReviewPreferences()"><option value="en">English</option><option value="ta">தமிழ்</option><option value="hi">हिन्दी</option></select></label>
+            <label><span>PDF language / OCR (before upload)</span><select id="source-language"><option value="auto">Auto / mixed</option><option value="en">English</option><option value="ta">தமிழ் + English</option><option value="hi">हिन्दी + English</option></select></label>
+            <label><span>Document category</span><select id="document-category" onchange="changeReviewPreferences()"><option value="auto">Auto-detect (confirm result)</option><option value="nda">Non-Disclosure Agreement (NDA)</option><option value="services">Services / vendor agreement</option><option value="employment">Employment agreement</option><option value="lease">Lease / rental agreement</option><option value="property">Property transfer / mortgage</option><option value="judgment">Judgment / court order</option><option value="pleading">Petition / pleading</option><option value="affidavit">Affidavit / declaration</option><option value="legislation">Act / rules / regulation</option><option value="corporate">Corporate / governance document</option><option value="will">Will / trust instrument</option><option value="power_of_attorney">Power of attorney</option><option value="notice">Legal notice</option><option value="policy">Privacy policy / terms</option><option value="ip_license">IP / licence agreement</option><option value="general_contract">Other contract</option><option value="unknown">Unknown / mixed document</option></select></label>
+            <p id="review-scope" role="status"></p>
+        </div>
                 </div>
 
                 <div class="glass-card">
@@ -395,9 +429,24 @@ main{flex:1;width:100%;max-width:1680px;margin:0 auto;padding:clamp(1rem,2.6vw,2
             if (button) button.classList.add('active');
         }
 
+        let clauseIqPreviewUrl = null;
+        function showDocumentPreview(file) {
+            const empty = document.getElementById('document-preview-empty');
+            const frameWrap = document.getElementById('document-preview-frame-wrap');
+            const frame = document.getElementById('document-preview-frame');
+            const status = document.getElementById('preview-status');
+            if (clauseIqPreviewUrl) URL.revokeObjectURL(clauseIqPreviewUrl);
+            clauseIqPreviewUrl = URL.createObjectURL(file);
+            frame.src = clauseIqPreviewUrl + '#view=FitH';
+            empty.classList.add('hidden');
+            frameWrap.classList.remove('hidden');
+            status.textContent = file.name;
+        }
+
         async function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file || isUploading) return;
+            showDocumentPreview(file);
             resetDocumentViews();
             isUploading = true;
             setPreferenceControlsDisabled(true);
