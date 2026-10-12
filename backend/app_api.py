@@ -436,10 +436,12 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
                 self._send_json({"error": "The server could not complete the request."}, 500)
 
 
-def run_server(port: int = 8080):
-    server_address = ("", port)
+def run_server(port: int | None = None):
+    # Cloud platforms inject PORT at runtime; retain 8080 for local development.
+    resolved_port = port if port is not None else int(os.getenv("PORT", "8080"))
+    server_address = ("0.0.0.0", resolved_port)
     httpd = ThreadingHTTPServer(server_address, LegalAPIRequestHandler)
-    print(f"Legal AI REST API Backend running at: http://localhost:{port}")
+    print(f"Legal AI REST API Backend listening on port {resolved_port}")
     httpd.serve_forever()
 
 
