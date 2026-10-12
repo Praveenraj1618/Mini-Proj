@@ -1,0 +1,51 @@
+name: ClauseIQ UI checks
+
+on:
+  push:
+    branches:
+      - main
+      - redesign/clauseiq-workspace
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  frontend-state-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run frontend state regression tests
+        run: node --test frontend/tests/state.test.cjs
+      - name: Check frontend HTML structure and JavaScript syntax
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import vm from 'node:vm';
+          const html = fs.readFileSync('frontend/index.html', 'utf8');
+          const ids = [
+            'response-language', 'source-language', 'document-category',
+            'dropzone-box', 'file-input', 'doc-stats', 'heatmap-container',
+            'summary-container', 'qa-input', 'qa-output', 'clause-input',
+            'negotiate-output', 'obligations-container', 'visuals-container',
+            'visual-analysis-output', 'compare-file-2', 'compare-container',
+            'llm-status', 'check-ai-button'
+          ];
+          for (const id of ids) {
+            if (!html.includes(`id="${id}"`)) throw new Error(`Missing required UI element: ${id}`);
+          }
+          for (const id of ['heatmap-tab','summary-tab','qa-tab','negotiate-tab','obligations-tab','visuals-tab','compare-tab']) {
+            if (!html.includes(`id="${id}"`)) throw new Error(`Missing analysis panel: ${id}`);
+          }
+          if (!html.includes('ClauseIQ')) throw new Error('ClauseIQ branding is missing');
+          if (!html.includes('--gold:#d6ae58')) throw new Error('Gold theme token is missing');
+          const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
+          if (!scripts.length) throw new Error('No inline application script found');
+          for (const script of scripts) new vm.Script(script[1], { filename: 'frontend/index.html inline script' });
+          console.log('UI structure and inline JavaScript syntax checks passed.');
+          NODE
