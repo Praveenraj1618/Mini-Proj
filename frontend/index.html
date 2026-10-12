@@ -88,6 +88,83 @@ main{height:auto;min-height:0;overflow:visible}
 @media(max-width:980px){.dashboard-grid{grid-template-columns:minmax(0,1fr) minmax(0,1.35fr)}}
 @media(max-width:760px){.dashboard-grid{grid-template-columns:minmax(0,1fr)}.tab-bar{top:0;flex-wrap:nowrap}.sidebar-stack,.analysis-stack{max-height:none;height:auto;overflow:visible;position:static}}
 
+
+/* Mobile-first usability pass: keep upload, analysis, and controls reachable */
+html { -webkit-text-size-adjust: 100%; }
+body { width: 100%; }
+button, .dropzone, select, input, textarea { touch-action: manipulation; }
+@media (max-width: 760px) {
+  header { gap: .8rem; padding: .8rem .9rem; }
+  .logo-group { flex: 1 1 100%; gap: .65rem; }
+  .logo-icon { width: 40px; height: 40px; flex-basis: 40px; }
+  .logo-title { font-size: 1.08rem; }
+  .logo-sub { line-height: 1.4; max-width: 32rem; }
+  .header-actions { display: grid; grid-template-columns: minmax(0,1fr); gap: .55rem; }
+  .legal-notice { width: fit-content; max-width: 100%; font-size: .7rem; }
+  .status-badge { width: 100%; border-radius: 10px; }
+  #check-ai-button { width: 100%; min-height: 44px; }
+  main { padding: .7rem; gap: .8rem; }
+  .workspace-intro { padding: .15rem .1rem .3rem; }
+  .eyebrow { font-size: .64rem; }
+  .page-title { font-size: clamp(1.45rem, 7vw, 1.9rem); line-height: 1.15; }
+  .page-description { font-size: .84rem; line-height: 1.55; }
+  .dashboard-grid { display: flex; flex-direction: column; gap: .75rem; width: 100%; }
+  /* On phones, show the upload first, then the analysis; move supporting panels below it. */
+  .sidebar-stack { display: contents; }
+  .sidebar-stack > .glass-card:first-child { order: 0; width: 100%; }
+  .analysis-stack { order: 1; width: 100%; gap: .7rem; }
+  .document-preview-card { order: 2; width: 100%; }
+  .preferences-card { order: 3; width: 100%; }
+  .glass-card { padding: .9rem; border-radius: 13px; }
+  .card-header { align-items: flex-start; flex-wrap: wrap; gap: .45rem; margin-bottom: .75rem; padding-bottom: .65rem; }
+  .card-title { font-size: .93rem; }
+  .section-note { font-size: .7rem; }
+  .dropzone { padding: 1.25rem .8rem; min-height: 150px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+  .dropzone-text { font-size: .9rem; }
+  .dropzone-sub { max-width: 22rem; line-height: 1.5; }
+  .stats-grid { gap: .5rem; }
+  .stat-box { padding: .65rem; }
+  .stat-label { font-size: .61rem; }
+  .stat-val { font-size: .98rem; }
+  .tab-bar { position: sticky; top: 0; z-index: 40; display: flex; flex-wrap: nowrap; gap: .35rem; padding: .45rem; margin: 0; border-radius: 11px; background: rgba(240,238,231,.97); backdrop-filter: blur(12px); -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
+  .tab-btn { flex: 0 0 auto; min-height: 44px; min-width: 44px; padding: .65rem .8rem; font-size: .76rem; white-space: nowrap; scroll-snap-align: start; }
+  .tab-bar::-webkit-scrollbar { height: 3px; }
+  .tab-content { scroll-margin-top: 58px; }
+  .analysis-stack > .tab-content > .glass-card { min-height: 0; padding: .85rem; }
+  .heatmap-item { padding: .8rem; }
+  .heatmap-top { align-items: flex-start; flex-wrap: wrap; gap: .4rem; }
+  .heatmap-cat { font-size: .88rem; }
+  .summary-grid { grid-template-columns: minmax(0,1fr); }
+  .summary-text { padding: .8rem; font-size: .86rem; overflow-wrap: anywhere; }
+  .chat-box { min-height: 0; gap: .7rem; }
+  .chat-input-group { display: flex; flex-direction: column; gap: .55rem; }
+  .chat-input, input, select, textarea { width: 100%; min-height: 44px; font-size: 16px; }
+  textarea { min-height: 110px; }
+  .btn-primary, .btn-secondary, #check-ai-button { min-height: 44px; padding: .72rem .9rem; }
+  .quick-actions { gap: .6rem; }
+  .preview-frame-wrap { height: min(62vh, 560px); min-height: 280px; }
+  .preview-footer { font-size: .68rem; line-height: 1.4; }
+  #obligations-container { -webkit-overflow-scrolling: touch; }
+  .custom-table { min-width: 560px; }
+  #obligations-container:has(.custom-table), #compare-container:has(.custom-table) { overflow-x: auto; }
+  #visuals-container img, #visuals-container canvas, #visuals-container svg { max-width: 100%; }
+  .diagnostic { overflow-wrap: anywhere; }
+}
+@media (max-width: 380px) {
+  main { padding: .55rem; }
+  .glass-card { padding: .75rem; }
+  .logo-sub { font-size: .68rem; }
+  .tab-btn { padding: .62rem .7rem; font-size: .72rem; }
+  .preview-frame-wrap { min-height: 250px; }
+}
+@media (min-width: 761px) and (max-width: 1050px) {
+  main { padding: .9rem; }
+  .dashboard-grid { grid-template-columns: minmax(250px,.78fr) minmax(0,1.22fr); gap: .8rem; }
+  .glass-card { padding: .95rem; }
+  .tab-bar { flex-wrap: nowrap; }
+  .tab-btn { padding: .6rem .65rem; }
+}
+
 </style>
 </head>
 <body>
