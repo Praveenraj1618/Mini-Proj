@@ -2,6 +2,10 @@
 
 A PDF-based legal document review prototype with English, Tamil and Hindi workflows. Upload a document to inspect its category, summary, risk areas, cited Q&A, obligations, and visual pages. Contract-like categories also support negotiation drafts and version comparison. **This is a review aid, not legal advice or a verified translation.** Check every result against the cited source and have a qualified person review consequential decisions.
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Praveenraj1618/Mini-Proj)
+
+**Free hosting note:** The included Render Blueprint uses a free web service. Free instances can sleep when idle and have limited memory; ML model downloads and OCR may make cold starts slow or cause memory-related failures. Configure your AI provider keys as private environment variables during deployment.
+
 > **Branch note:** Multilingual support and the document-family expansion are on `feat/multilingual-document-review` (draft PR #3), not necessarily on `main`. Use that branch for the instructions below.
 
 ## What you need
