@@ -146,8 +146,38 @@ def extract_clause_evidence(document, context_chars: int = 400) -> List[ClauseEv
         if not lines:
             continue
         for line in lines:
-            # Benchmark banners and test-only notices are not legal evidence.
-            if _is_fixture_noise(line):
+            # A standalone PDF page label is already represented by page
+            # provenance and should not be copied into the clause text.
+            if re.fullmatch(r"page\\s+\\d+", line.strip(), re.I):
+                continue
+
+            # Benchmark banners are removed. A test-data notice is commonly
+            # wrapped across several PDF text lines, so discard the remainder
+            # of that page once its marker is encountered.
+            normalized_line = " ".join(line.lower().split())
+            if "test data notice" in normalized_line:
+                prefix = re.split(r"test data notice", line, maxsplit=1, flags=re.I)[0].strip()
+                if prefix:
+                    line = prefix
+                else:
+                    break
+                if not line:
+                    break
+            elif _is_fixture_noise(line):
+                continue
+
+            # PDF extraction can place a signature label at the end of the
+            # preceding clause line. Split it into its own evidence section.
+            signature = re.search(r"\\b(signatures?\\s*\\(sample only\\))", line, re.I)
+            if signature:
+                clause_text = line[:signature.start()].strip()
+                signature_text = line[signature.start():].strip()
+                if clause_text:
+                    if current is None:
+                        start_section("Unclassified section", page.page_num, False, clause_text)
+                    else:
+                        current["text_parts"].append(clause_text)
+                start_section("Signatures", page.page_num, True, signature_text)
                 continue
 
             # Parties/date/reference fields describe the document rather than
