@@ -27,6 +27,7 @@ from core.document_loader import LegalDocumentLoader, LoadedDocument
 from core.legal_reviewer import LegalReviewer
 from langchain_core.messages import HumanMessage
 from core.vector_store import LegalVectorStore
+from core.dependency_mapping import build_clause_relationships
 
 
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
@@ -298,8 +299,12 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
                 return
 
             reviewer = None
-            if path in ("/api/summary", "/api/heatmap", "/api/obligations", "/api/visuals"):
+            if path in ("/api/summary", "/api/heatmap", "/api/obligations", "/api/visuals", "/api/dependencies"):
                 reviewer = self._require_reviewer()
+            if path == "/api/dependencies":
+                self._send_json(build_clause_relationships(reviewer.document))
+                return
+
             if path == "/api/visuals":
                 self._send_json({
                     "document_id": reviewer.document_id,
