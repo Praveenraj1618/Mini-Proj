@@ -13,7 +13,7 @@ from langchain_core.embeddings import Embeddings
 
 from core.chunker import DocumentChunk, LegalChunker
 from core.document_loader import LegalDocumentLoader, LoadedDocument, PageData
-from core.document_analysis import evidence_windows, contract_changes
+from core.document_analysis import evidence_windows
 from core.vector_store import LegalVectorStore
 from core.legal_reviewer import LegalReviewer
 import core.legal_reviewer as reviewer_module
@@ -98,69 +98,6 @@ def test_evidence_windows_do_not_drop_long_unbroken_text_or_include_artifacts():
     windows = evidence_windows(doc, 2000)
     assert all(len(w) <= 2000 for w in windows)
     assert ''.join(w.split('\n', 1)[1] for w in windows) == text
-
-
-def test_comparison_detects_late_changes_and_preserves_source_evidence(monkeypatch):
-    common = ['Common terms. ' * 200] * 7
-    left = LegalReviewer(document(common + ['The Buyer shall pay within 30 days.'], 'v1.pdf'), None)
-    right = LegalReviewer(document(common + ['The Buyer shall pay within 75 days.'], 'v2.pdf'), None)
-    prompts = []
-    def assess(messages, **kwargs):
-        prompts.append(messages[-1].content)
-        return '[{"change_id":1,"impact":"MODERATE","analysis":"The payment period changed.","v1_text":"invented"}]'
-    monkeypatch.setattr(reviewer_module, 'check_api_key_configured', lambda: True)
-    monkeypatch.setattr(left, '_invoke_llm', assess)
-    result = LegalReviewer.compare_contracts(left, right)
-    assert result['status'] == 'analyzed'
-    assert result['total_changes_detected'] == 1
-    assert '75 days' in prompts[0]
-    row = result['comparison_table'][0]
-    assert row['v1_page'] == row['v2_page'] == 8
-    assert row['v1_text'] == 'The Buyer shall pay within 30 days.'
-
-
-def test_comparison_identical_documents_never_call_llm(monkeypatch):
-    first = LegalReviewer(document(['Exactly the same terms.']), None)
-    monkeypatch.setattr(reviewer_module, 'check_api_key_configured', lambda: True)
-    monkeypatch.setattr(first, '_invoke_llm', lambda *a, **k: pytest.fail('No LLM call for identical documents'))
-    result = LegalReviewer.compare_contracts(first, first)
-    assert result['status'] == 'no_changes'
-    assert result['total_changes_detected'] == 0
-    assert result['comparison_table'] == []
-
-
-@pytest.mark.parametrize('response', [None, 'not JSON', '[{"change_id":99,"impact":"HIGH","analysis":"Wrong ID"}]'])
-def test_failed_comparison_preserves_actual_changes_without_risk_claims(monkeypatch, response):
-    first = LegalReviewer(document(['Payment due in 30 days.']), None)
-    second = LegalReviewer(document(['Payment due in 90 days.']), None)
-    def fail(*args, **kwargs):
-        if response is None:
-            raise RuntimeError('Provider unavailable')
-        return response
-    monkeypatch.setattr(reviewer_module, 'check_api_key_configured', lambda: True)
-    monkeypatch.setattr(first, '_invoke_llm', fail)
-    result = LegalReviewer.compare_contracts(first, second)
-    assert result['status'] == 'analysis_failed'
-    assert result['total_changes_detected'] == 1
-    assert result['comparison_table'][0]['impact'] == 'REVIEW REQUIRED'
-    assert '90 days' in result['comparison_table'][0]['v2_text']
-
-
-def test_large_comparison_retains_all_changes_in_bounded_requests(monkeypatch):
-    first = LegalReviewer(document([f'Old obligation {i}.' for i in range(60)]), None)
-    second = LegalReviewer(document([f'New obligation {i}.' for i in range(60)]), None)
-    prompts = []
-    def assess(messages, **kwargs):
-        prompt = messages[-1].content
-        prompts.append(prompt)
-        batch = json.loads(prompt.split('\n\n', 1)[1])
-        return json.dumps([dict(change_id=x['change_id'], impact='REVIEW REQUIRED', analysis='Needs context.') for x in batch])
-    monkeypatch.setattr(reviewer_module, 'check_api_key_configured', lambda: True)
-    monkeypatch.setattr(first, '_invoke_llm', assess)
-    result = LegalReviewer.compare_contracts(first, second)
-    assert len(result['comparison_table']) == result['total_changes_detected'] == 60
-    assert len(prompts) == 30
-    assert 'New obligation 59' in prompts[-1]
 
 
 def test_classifier_never_exposes_uncalibrated_numeric_confidence(monkeypatch):
@@ -314,8 +251,9 @@ def test_real_api_isolates_uploads_rejects_stale_ids_and_serves_visuals(monkeypa
         assert previews['previews'][0]['image_url'].startswith('data:image/png;base64,')
         analysis = request(first, '/api/visuals/analyze', {}, a['document_id'])
         assert analysis['results'][0]['status'] == 'vision_unavailable'
-        comparison = request(first, '/api/compare', pdf('Alpha shall pay 30 coins.'), a['document_id'])
-        assert comparison['total_changes_detected'] == 0
+        with pytest.raises(urllib.error.HTTPError) as removed_route:
+            request(first, '/api/compare', pdf('Alpha shall pay 30 coins.'), a['document_id'])
+        assert removed_route.value.code == 404
         old = next(s['doc1_reviewer'] for s in SESSION_DATA.values() if s['doc1_reviewer'].document_id == a['document_id'])
         replacement = request(first, '/api/upload', pdf('Gamma shall pay 45 coins.'))
         assert old.vector_store.total_chunks == 0
