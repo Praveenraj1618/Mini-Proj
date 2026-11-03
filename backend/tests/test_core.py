@@ -107,7 +107,7 @@ def make_document(name="contract.pdf", text="The Buyer shall pay within 30 days.
 
 
 def test_pdf_loader_accepts_bytes_and_preserves_name():
-    pdf_bytes = (PROJECT_DIR / "Mutual-NDA-public-2page.pdf").read_bytes()
+    pdf_bytes = (PROJECT_DIR / "test_doc" / "01_sample_nda.pdf").read_bytes()
     document = LegalDocumentLoader().load_pdf(pdf_bytes, file_name="uploaded.pdf")
     assert document.file_name == "uploaded.pdf"
     assert document.file_path == "<memory>"
