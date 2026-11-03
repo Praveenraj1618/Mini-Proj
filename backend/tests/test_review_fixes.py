@@ -276,8 +276,9 @@ def test_real_api_isolates_uploads_rejects_stale_ids_and_serves_visuals(monkeypa
 def test_scanned_pdf_can_build_api_reviewer(monkeypatch):
     from app_api import LegalAPIRequestHandler
     monkeypatch.setattr(LegalVectorStore, 'embeddings', property(lambda self: LocalTestEmbeddings()))
-    reviewer, count = LegalAPIRequestHandler._build_reviewer(scan_bytes(), 'scan.pdf', 'en')
+    reviewer = None
     try:
+        reviewer, count = LegalAPIRequestHandler._build_reviewer(scan_bytes(), 'scan.pdf', 'en')
         assert count > 0
         assert reviewer.document.ocr_pages == [1]
         assert '45 days' in reviewer.document.full_text
@@ -288,5 +289,5 @@ def test_scanned_pdf_can_build_api_reviewer(monkeypatch):
             pytest.skip("Tesseract English language data unavailable in this environment")
         raise
     finally:
-        if "reviewer" in locals():
+        if reviewer is not None:
             reviewer.vector_store.close()
