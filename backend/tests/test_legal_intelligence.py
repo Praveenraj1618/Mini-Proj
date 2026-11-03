@@ -6,6 +6,9 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 from core.document_loader import LoadedDocument, PageData
 from core.legal_intelligence import extract_clause_evidence
+from core.legal_reviewer import LegalReviewer
+import core.legal_reviewer as reviewer_module
+import json
 
 
 def make_document(pages, name="sample-contract.pdf"):
@@ -120,3 +123,70 @@ def test_negative_context_size_is_rejected():
         assert "non-negative" in str(error)
     else:
         raise AssertionError("Expected ValueError for negative context size")
+
+
+
+def test_clause_simplification_returns_grounded_fields_and_page_citations(monkeypatch):
+    document = make_document([
+        (1, "1. PAYMENT
+The Buyer shall pay the Seller within a reasonable time after delivery.")
+    ])
+    reviewer = LegalReviewer(document, None)
+    monkeypatch.setattr(reviewer_module, "check_api_key_configured", lambda: True)
+    response = {
+        "simplified_explanation": "The Buyer must pay after delivery, but the deadline is not specific. [Page 1]",
+        "ambiguities": [{
+            "issue": "reasonable time",
+            "why_it_matters": "The payment deadline may be disputed.",
+            "citations": ["[Page 1]"],
+        }],
+        "missing_information": [{
+            "item": "A defined payment deadline",
+            "reason": "No number of days is stated.",
+            "citations": ["[Page 1]"],
+        }],
+        "clarification_questions": ["How many days after delivery is payment due?"],
+        "uncertainty": {
+            "explicit_terms": [{"statement": "Payment follows delivery.", "citations": ["[Page 1]"]}],
+            "assumptions": [],
+            "possible_interpretations": [],
+        },
+    }
+    monkeypatch.setattr(reviewer, "_invoke_llm", lambda *args, **kwargs: json.dumps(response))
+
+    result = reviewer.simplify_clause(extract_clause_evidence(document)[0].clause_id)
+
+    assert result["status"] == "analyzed"
+    assert result["pages"] == [1]
+    assert result["ambiguities"][0]["issue"] == "reasonable time"
+    assert result["clarification_questions"]
+    assert result["uncertainty"]["explicit_terms"]
+
+
+def test_clause_simplification_rejects_fabricated_page_citations(monkeypatch):
+    document = make_document([(1, "1. PAYMENT
+Payment is due after delivery.")])
+    reviewer = LegalReviewer(document, None)
+    monkeypatch.setattr(reviewer_module, "check_api_key_configured", lambda: True)
+    response = {
+        "simplified_explanation": "Payment follows delivery. [Page 99]",
+        "ambiguities": [],
+        "missing_information": [],
+        "clarification_questions": [],
+        "uncertainty": {"explicit_terms": [], "assumptions": [], "possible_interpretations": []},
+    }
+    monkeypatch.setattr(reviewer, "_invoke_llm", lambda *args, **kwargs: json.dumps(response))
+
+    result = reviewer.simplify_clause(extract_clause_evidence(document)[0].clause_id)
+
+    assert result["status"] == "analysis_failed"
+    assert "could not be validated" in result["error"]
+
+
+def test_clause_simplification_reports_unknown_clause_id():
+    reviewer = LegalReviewer(make_document([(1, "1. PAYMENT
+Payment is due.")]), None)
+
+    result = reviewer.simplify_clause("not-a-real-clause")
+
+    assert result["status"] == "not_found"
