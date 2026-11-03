@@ -244,7 +244,7 @@ class LegalReviewer(ReviewWorkflow):
                         time.sleep(1.0 * (2 ** attempt))
                         continue
                     if is_rate_limit and attempt == 0:
-                        match = re.search(r"try again in\\s+([\\d.]+)s", message, re.IGNORECASE)
+                        match = re.search(r"try again in\s+([\d.]+)s", message, re.IGNORECASE)
                         wait_seconds = float(match.group(1)) if match else 2.0
                         time.sleep(min(max(wait_seconds + 0.5, 1.0), 5.0))
                         continue
