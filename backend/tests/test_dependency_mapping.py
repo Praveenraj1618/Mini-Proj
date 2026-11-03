@@ -10,7 +10,7 @@ from core.dependency_mapping import build_clause_relationships
 from core.legal_intelligence import extract_clause_evidence
 
 
-def make_document(text, page_two="4. GENERAL\nThis agreement is governed by its written terms."):
+def make_document(text, page_two=""):
     return LoadedDocument(
         file_path="<memory>", file_name="agreement.pdf", total_pages=2,
         pages=[
