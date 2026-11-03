@@ -17,7 +17,6 @@ The architecture is fully **decoupled**: the Python Backend (`backend/app_api.py
 | `POST` | `/api/negotiate` | Risk Analysis & Safer Clause Generator | `{"clause": "text..."}` | `{"risk_level": "...", "safer_alternative": "..."}` |
 | `POST` | `/api/qa` | Grounded Q&A with Citation Cards | `{"question": "query..."}` | `{"answer": "...", "sources": [...]}` |
 | `GET` | `/api/obligations` | Structured Duties & Deadlines | None | `[{"party": "...", "obligation": "...", "deadline_frequency": "..."}]` |
-| `POST` | `/api/compare` | Compare an uploaded second version with the session's first contract | `multipart/form-data` (`file`) | `{"comparison_table": [...]}` |
 
 Uploaded documents are isolated by an HTTP-only session cookie. Browser clients hosted on an allowed separate origin must send requests with `credentials: 'include'`. Configure additional development origins with `CORS_ALLOWED_ORIGINS`. The default maximum PDF size is 20 MB and can be changed with `MAX_UPLOAD_MB`.
 
@@ -91,6 +90,6 @@ public class LegalAIClientController {
 
 The dashboard now has a **Visuals & OCR** tab. `GET /api/visuals` returns page previews and coverage; `POST /api/visuals/analyze` requests descriptions from explicitly configured vision models. Upload responses include OCR page numbers, extraction warnings, and a `document_id`.
 
-Clients should include that ID as `X-Document-Id` on subsequent document requests. Replaced-document IDs return 409. New uploads clear prior panels, and stale responses are ignored. Classification displays its source/method rather than an uncalibrated percentage. Comparison statuses distinguish no changes, text-only differences, completed AI assessment, and partial/failed assessment.
+Clients should include that ID as `X-Document-Id` on subsequent document requests. Replaced-document IDs return 409. New uploads clear prior panels, and stale responses are ignored. Classification displays its source/method rather than an uncalibrated percentage.
 
 See [setup and limits](../docs/second_review_fixes.md). Run UI-state regressions with `node --test frontend/tests/state.test.cjs` from the repository root.
