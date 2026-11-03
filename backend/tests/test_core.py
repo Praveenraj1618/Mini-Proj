@@ -348,22 +348,6 @@ def test_reviewer_qa_uses_hybrid_results(monkeypatch):
     assert response["sources"][0]["score_type"] == "rrf"
 
 
-def test_offline_comparison_reports_real_text_changes_only():
-    first = LegalReviewer(make_document("v1.pdf", "Payment is due in 30 days."), None)
-    second = LegalReviewer(make_document("v2.pdf", "Payment is due in 15 days."), None)
-
-    result = LegalReviewer.compare_contracts(first, second)
-
-    assert result["doc1_name"] == "v1.pdf"
-    assert result["doc2_name"] == "v2.pdf"
-    assert result["total_changes_detected"] > 0
-    combined = " ".join(
-        item["v1_text"] + " " + item["v2_text"] for item in result["comparison_table"]
-    )
-    assert "30" in combined and "15" in combined
-    assert all(item["impact"] == "REVIEW REQUIRED" for item in result["comparison_table"])
-
-
 def test_offline_classifier_prefers_document_title_over_incidental_clauses():
     msa_text = "MASTER SERVICES AGREEMENT\nThe parties shall protect confidential information."
     nda_text = "MUTUAL NON-DISCLOSURE AGREEMENT\nConfidentiality obligations apply."
@@ -383,7 +367,7 @@ def test_raw_upload_rejects_non_pdf_content():
         handler._read_uploaded_pdf()
 
 
-def test_api_sessions_are_isolated_and_compare_uses_second_upload(monkeypatch):
+def test_api_sessions_are_isolated_and_comparison_route_is_removed(monkeypatch):
     def fake_build_reviewer(file_data, filename, source_language="auto"):
         text = file_data.decode("latin-1")
         return LegalReviewer(make_document(filename, text), None), 1
@@ -414,16 +398,15 @@ def test_api_sessions_are_isolated_and_compare_uses_second_upload(monkeypatch):
             second_browser.open(f"{base_url}/api/obligations")
         assert isolated_error.value.code == 400
 
-        compare = urllib.request.Request(
+        removed_route = urllib.request.Request(
             f"{base_url}/api/compare",
             data=b"%PDF-version-two",
             headers={"Content-Type": "application/pdf", "X-Upload-Filename": "v2.pdf"},
             method="POST",
         )
-        comparison = json.load(first_browser.open(compare))
-        assert comparison["doc1_name"] == "v1.pdf"
-        assert comparison["doc2_name"] == "v2.pdf"
-        assert comparison["total_changes_detected"] > 0
+        with pytest.raises(urllib.error.HTTPError) as removed_error:
+            first_browser.open(removed_route)
+        assert removed_error.value.code == 404
     finally:
         server.shutdown()
         server.server_close()
