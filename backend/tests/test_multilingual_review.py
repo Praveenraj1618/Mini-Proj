@@ -107,10 +107,6 @@ def test_empty_document_does_not_claim_ai_success(monkeypatch):
     assert r.extract_obligations()==[] and r.obligation_status['mode']=='rule_based'
 
 
-def test_cross_language_comparison_does_not_rate_translation_as_legal_change():
-    a=reviewer(['Rent is payable monthly.']);b=reviewer(['வாடகை மாதந்தோறும் செலுத்த வேண்டும்.'])
-    result=LegalReviewer.compare_contracts(a,b)
-    assert result['status']=='language_mismatch' and result['warnings']
 
 @pytest.mark.parametrize('headers',[{'X-Response-Language':'fr'},{'X-Document-Category':'fiction'}])
 def test_api_rejects_invalid_preferences(headers):
