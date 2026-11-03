@@ -15,11 +15,11 @@ from core.legal_intelligence import extract_clause_evidence
 
 
 _REFERENCE_RE = re.compile(
-    r"(?P<cue>subject\\s+to|notwithstanding|except\\s+as\\s+provided\\s+in|"
-    r"pursuant\\s+to|in\\s+accordance\\s+with|under|as\\s+set\\s+out\\s+in|"
-    r"see|refer\\s+to)?\\s*"
-    r"(?:clause|section|article|paragraph)\\s+"
-    r"(?P<number>\\d+(?:\\.\\d+)*|[ivxlcdm]+)",
+    r"(?P<cue>subject\s+to|notwithstanding|except\s+as\s+provided\s+in|"
+    r"pursuant\s+to|in\s+accordance\s+with|under|as\s+set\s+out\s+in|"
+    r"see|refer\s+to)?\s*"
+    r"(?:clause|section|article|paragraph)\s+"
+    r"(?P<number>\d+(?:\.\d+)*|[ivxlcdm]+)",
     re.IGNORECASE,
 )
 _ALLOWED_TYPES = {
@@ -31,7 +31,7 @@ _ALLOWED_TYPES = {
 def _clause_number(clause: dict):
     title = clause["title"].strip()
     match = re.match(
-        r"^(?:(?:clause|section|article)\\s+)?(\\d+(?:\\.\\d+)*|[ivxlcdm]+)",
+        r"^(?:(?:clause|section|article)\s+)?(\d+(?:\.\d+)*|[ivxlcdm]+)",
         title, re.I,
     )
     return match.group(1).lower() if match else None
@@ -43,8 +43,8 @@ def _is_contract_clause(clause: dict) -> bool:
         return False
     title = clause.get("title", "").strip()
     return bool(
-        re.match(r"^(?:article|section)\\s+(?:\\d+|[ivxlcdm]+)\\b", title, re.I)
-        or re.match(r"^(?:(?:clause)\\s+)?\\d+(?:\\.\\d+)*[.)]\\s+\\S", title, re.I)
+        re.match(r"^(?:article|section)\s+(?:\d+|[ivxlcdm]+)\b", title, re.I)
+        or re.match(r"^(?:(?:clause)\s+)?\d+(?:\.\d+)*[.)]\s+\S", title, re.I)
     )
 
 
