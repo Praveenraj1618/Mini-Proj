@@ -7,20 +7,16 @@ in an explicitly unclassified section.
 from dataclasses import dataclass, field
 import hashlib
 import re
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from core.document_analysis import contract_pages
 
 
 _HEADING_PATTERNS = (
-    # ARTICLE 2, ARTICLE II — DEFINITIONS
-    re.compile(r"^ARTICLE\\s+(?:[0-9]+|[IVXLCDM]+)(?:\\s*[:.\\-–—]?\\s*.*)?$", re.I),
-    # SECTION 2.1 Definitions; Section 4
-    re.compile(r"^SECTION\\s+[0-9]+(?:\\.[0-9]+)*(?:\\s*[:.\\-–—]?\\s*.*)?$", re.I),
-    # 1. Definitions; 2.1 Term and termination; 1.2.3
-    re.compile(r"^(?P<number>\\d+(?:\\.\\d+)*)(?:[.)]?)\\s+(?P<title>[A-Z][^\\n]{0,140})$"),
-    # (a) Scope; (i) Exceptions — only when followed by a short heading-like line
-    re.compile(r"^\\([a-zivxlcdm]+\\)\\s+[A-Z][^\\n]{0,100}$", re.I),
+    re.compile(r"^ARTICLE\s+(?:[0-9]+|[IVXLCDM]+)(?:\s*[:.\-–—]?\s*.*)?$", re.I),
+    re.compile(r"^SECTION\s+[0-9]+(?:\.[0-9]+)*(?:\s*[:.\-–—]?\s*.*)?$", re.I),
+    re.compile(r"^(?P<number>\d+(?:\.\d+)*)(?:[.)]?)\s+(?P<title>[A-Z][^\n]{0,140})$"),
+    re.compile(r"^\([a-zivxlcdm]+\)\s+[A-Z][^\n]{0,100}$", re.I),
 )
 
 
@@ -67,7 +63,7 @@ def _heading_title(line: str) -> Optional[str]:
 
 def _stable_id(document_name: str, ordinal: int, title: str, text: str) -> str:
     digest = hashlib.sha1(
-        (document_name + "\\0" + str(ordinal) + "\\0" + title + "\\0" + text).encode("utf-8")
+        (document_name + "\0" + str(ordinal) + "\0" + title + "\0" + text).encode("utf-8")
     ).hexdigest()[:12]
     return f"clause-{ordinal:04d}-{digest}"
 
@@ -111,8 +107,7 @@ def extract_clause_evidence(document, context_chars: int = 400) -> List[ClauseEv
                 start_section("Unclassified section", page.page_num, False, line)
             elif line:
                 current["text_parts"].append(line)
-            # Empty lines are preserved as paragraph separators when a section exists.
-            elif current is not None:
+            else:
                 current["text_parts"].append("")
             if current is not None:
                 current["page_end"] = page.page_num
@@ -121,7 +116,7 @@ def extract_clause_evidence(document, context_chars: int = 400) -> List[ClauseEv
 
     evidence = []
     for index, section in enumerate(sections, 1):
-        text = "\\n".join(section["text_parts"]).strip()
+        text = "\n".join(section["text_parts"]).strip()
         if not text:
             continue
         evidence.append(ClauseEvidence(
