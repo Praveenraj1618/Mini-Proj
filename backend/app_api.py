@@ -302,7 +302,19 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
             if path in ("/api/summary", "/api/heatmap", "/api/obligations", "/api/visuals", "/api/dependencies"):
                 reviewer = self._require_reviewer()
             if path == "/api/dependencies":
-                self._send_json(build_clause_relationships(reviewer.document))
+                cache_key = (reviewer.response_language, reviewer.category_override)
+                cache = getattr(reviewer, "_dependency_mapping_cache", {})
+                if cache_key not in cache:
+                    llm_invoke = None
+                    if check_api_key_configured():
+                        llm_invoke = lambda prompt: reviewer._invoke_llm(
+                            [HumanMessage(content=prompt)], max_tokens=1800
+                        )
+                    cache[cache_key] = build_clause_relationships(
+                        reviewer.document, llm_invoke=llm_invoke
+                    )
+                    reviewer._dependency_mapping_cache = cache
+                self._send_json(cache[cache_key])
                 return
 
             if path == "/api/visuals":
