@@ -128,8 +128,7 @@ def test_negative_context_size_is_rejected():
 
 def test_clause_simplification_returns_grounded_fields_and_page_citations(monkeypatch):
     document = make_document([
-        (1, "1. PAYMENT
-The Buyer shall pay the Seller within a reasonable time after delivery.")
+        (1, "1. PAYMENT\\nThe Buyer shall pay the Seller within a reasonable time after delivery.")
     ])
     reviewer = LegalReviewer(document, None)
     monkeypatch.setattr(reviewer_module, "check_api_key_configured", lambda: True)
@@ -164,8 +163,7 @@ The Buyer shall pay the Seller within a reasonable time after delivery.")
 
 
 def test_clause_simplification_rejects_fabricated_page_citations(monkeypatch):
-    document = make_document([(1, "1. PAYMENT
-Payment is due after delivery.")])
+    document = make_document([(1, "1. PAYMENT\\nPayment is due after delivery.")])
     reviewer = LegalReviewer(document, None)
     monkeypatch.setattr(reviewer_module, "check_api_key_configured", lambda: True)
     response = {
@@ -184,8 +182,7 @@ Payment is due after delivery.")])
 
 
 def test_clause_simplification_reports_unknown_clause_id():
-    reviewer = LegalReviewer(make_document([(1, "1. PAYMENT
-Payment is due.")]), None)
+    reviewer = LegalReviewer(make_document([(1, "1. PAYMENT\\nPayment is due.")]), None)
 
     result = reviewer.simplify_clause("not-a-real-clause")
 
