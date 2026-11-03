@@ -148,7 +148,7 @@ def extract_clause_evidence(document, context_chars: int = 400) -> List[ClauseEv
         for line in lines:
             # A standalone PDF page label is already represented by page
             # provenance and should not be copied into the clause text.
-            if re.fullmatch(r"page\\s+\\d+", line.strip(), re.I):
+            if re.fullmatch(r"page\s+\d+", line.strip(), re.I):
                 continue
 
             # Benchmark banners are removed. A test-data notice is commonly
@@ -168,7 +168,7 @@ def extract_clause_evidence(document, context_chars: int = 400) -> List[ClauseEv
 
             # PDF extraction can place a signature label at the end of the
             # preceding clause line. Split it into its own evidence section.
-            signature = re.search(r"\\b(signatures?\\s*\\(sample only\\))", line, re.I)
+            signature = re.search(r"\b(signatures?\s*\\(sample only\\))", line, re.I)
             if signature:
                 clause_text = line[:signature.start()].strip()
                 signature_text = line[signature.start():].strip()
