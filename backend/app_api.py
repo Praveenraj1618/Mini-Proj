@@ -76,7 +76,7 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
                 self._close_reviewers(expired)
             session = SESSION_DATA.setdefault(
                 session_id,
-                {"doc1_reviewer": None, "doc2_reviewer": None, "last_seen": time.time(),
+                {"doc1_reviewer": None, "last_seen": time.time(),
                  "request_lock": threading.RLock(), "active_requests": 0},
             )
             session["last_seen"] = time.time()
@@ -91,7 +91,7 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
 
     @staticmethod
     def _close_reviewers(session):
-        for key in ("doc1_reviewer", "doc2_reviewer"):
+        for key in ("doc1_reviewer",):
             reviewer = session.get(key)
             if reviewer and reviewer.vector_store is not None:
                 try:
@@ -377,7 +377,6 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
                 session = self._session()
                 self._close_reviewers(session)
                 session["doc1_reviewer"] = reviewer
-                session["doc2_reviewer"] = None
                 classification = reviewer.classify_document()
                 self._send_json({
                     "status": "success",
@@ -431,17 +430,6 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
             if path == "/api/visuals/analyze":
                 reviewer = self._require_reviewer()
                 self._send_json({"document_id": reviewer.document_id, "results": reviewer.analyze_visuals()})
-                return
-
-            if path == "/api/compare":
-                reviewer_v1 = self._require_reviewer()
-                file_data, filename = self._read_uploaded_pdf()
-                reviewer_v2, _ = self._build_reviewer(file_data, filename, self._upload_language())
-                try:
-                    self._send_json(LegalReviewer.compare_contracts(reviewer_v1, reviewer_v2))
-                finally:
-                    if reviewer_v2.vector_store is not None:
-                        reviewer_v2.vector_store.close()
                 return
 
             raise RequestError(f"Endpoint POST {path} not found.", 404)
