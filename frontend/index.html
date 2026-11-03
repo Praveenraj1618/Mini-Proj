@@ -265,6 +265,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                     <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="qa-tab" data-tab="qa-tab" onclick="switchTab('qa-tab', this)">Ask AI</button>
                     <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="negotiate-tab" data-tab="negotiate-tab" onclick="switchTab('negotiate-tab', this)">Negotiation</button>
                     <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="obligations-tab" data-tab="obligations-tab" onclick="switchTab('obligations-tab', this)">Obligations</button>
+                    <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="dependencies-tab" data-tab="dependencies-tab" onclick="switchTab('dependencies-tab', this); loadDependencies()">Clause map</button>
                     <button type="button" class="tab-btn hidden" role="tab" aria-selected="false" aria-controls="visuals-tab" data-tab="visuals-tab" onclick="switchTab('visuals-tab', this); loadVisuals()">Visuals & OCR</button>
                     <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="compare-tab" data-tab="compare-tab" onclick="switchTab('compare-tab', this)">Compare</button>
                 </div>
@@ -290,6 +291,21 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                         <div id="summary-container">
                             <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">Upload a PDF, then click Executive Summary.</div>
                         </div>
+                    </div>
+                </div>
+
+                <div id="dependencies-tab" class="tab-content hidden">
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <span class="card-title">Clause relationship explorer</span>
+                            <span class="section-note">Explicit references and inferred review leads</span>
+                        </div>
+                        <p class="section-note">Explicit links are resolved from wording in the contract. Inferred links are keyword-based candidates only; they do not establish legal dependency or automatic consequences.</p>
+                        <div id="dependencies-summary" class="summary-grid" aria-live="polite"></div>
+                        <div id="dependencies-container" class="heatmap-list">
+                            <p>Upload a contract, then open Clause map.</p>
+                        </div>
+                        <div id="dependencies-limits" class="diagnostic"></div>
                     </div>
                 </div>
 
@@ -402,7 +418,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
             documentEpoch += 1;
             pendingRequests.forEach(controller => controller.abort());
             pendingRequests.clear();
-            ['heatmap-container','summary-container','qa-output','negotiate-output','obligations-container','compare-container','visuals-container','visual-analysis-output'].forEach(id => {
+            ['heatmap-container','summary-container','qa-output','negotiate-output','obligations-container','dependencies-container','dependencies-summary','dependencies-limits','compare-container','visuals-container','visual-analysis-output'].forEach(id => {
                 document.getElementById(id).textContent = uiText('Preferences changed. Choose an analysis to continue.');
             });
             document.getElementById('analyze-visuals-button').disabled = false;
@@ -427,7 +443,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
             pendingRequests.forEach(controller => controller.abort());
             pendingRequests.clear();
             ['heatmap-container', 'summary-container', 'qa-output', 'negotiate-output',
-             'obligations-container', 'compare-container', 'visuals-container', 'visual-analysis-output']
+             'obligations-container', 'dependencies-container', 'dependencies-summary', 'dependencies-limits', 'compare-container', 'visuals-container', 'visual-analysis-output']
                 .forEach(id => { document.getElementById(id).textContent = 'Upload a contract to begin.'; });
             ['qa-input', 'clause-input', 'compare-file-2'].forEach(id => { document.getElementById(id).value = ''; });
             document.getElementById('doc-stats').classList.add('hidden');
@@ -821,6 +837,71 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
             } catch (err) {
                 if (err.name === 'AbortError') return;
                 container.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        async function loadDependencies() {
+            if (!requireDocument()) return;
+            switchTab('dependencies-tab');
+            const container = document.getElementById('dependencies-container');
+            const summary = document.getElementById('dependencies-summary');
+            const limits = document.getElementById('dependencies-limits');
+            container.textContent = 'Mapping clause references...';
+            summary.replaceChildren();
+            limits.textContent = '';
+            try {
+                const data = await readApiResponse(await scopedFetch(`${API_HOST}/api/dependencies`, {credentials:'include'}));
+                const explicit = data.relationships.filter(item => item.source_type === 'explicit');
+                const inferred = data.relationships.filter(item => item.source_type === 'inferred');
+                summary.innerHTML = `
+                    <div class="stat-box"><div class="stat-label">Detected sections</div><div class="stat-val">${data.clauses.length}</div></div>
+                    <div class="stat-box"><div class="stat-label">Explicit references</div><div class="stat-val">${explicit.length}</div></div>
+                    <div class="stat-box"><div class="stat-label">Inferred review leads</div><div class="stat-val">${inferred.length}</div></div>`;
+                container.replaceChildren();
+                const clauseById = new Map(data.clauses.map(clause => [clause.clause_id, clause]));
+                const section = document.createElement('div');
+                section.className = 'heatmap-item';
+                section.innerHTML = '<strong>Detected clauses</strong>';
+                data.clauses.forEach(clause => {
+                    const item = document.createElement('div');
+                    item.className = 'evidence-card';
+                    item.innerHTML = `<div class="evidence-head"><span>${escapeHtml(clause.title)}</span><span>Pages ${escapeHtml((clause.pages || []).join(', '))}</span></div><div class="source-text">${escapeHtml(clause.text.slice(0, 500))}${clause.text.length > 500 ? '…' : ''}</div>`;
+                    section.appendChild(item);
+                });
+                container.appendChild(section);
+                const links = document.createElement('div');
+                links.className = 'heatmap-item';
+                links.innerHTML = '<strong>Relationships</strong>';
+                if (!data.relationships.length) {
+                    const empty = document.createElement('p');
+                    empty.textContent = 'No cross-clause relationships were confidently identified by the current conservative rules.';
+                    links.appendChild(empty);
+                }
+                data.relationships.forEach(relation => {
+                    const source = clauseById.get(relation.source);
+                    const target = clauseById.get(relation.target);
+                    const item = document.createElement('div');
+                    item.className = 'evidence-card';
+                    const provenance = relation.source_type === 'explicit' ? 'Explicit contract reference' : 'Inferred candidate — verify';
+                    item.innerHTML = `<div class="evidence-head"><span>${escapeHtml(source?.title || relation.source)} → ${escapeHtml(target?.title || relation.target)}</span><span>${escapeHtml(relation.type)}</span></div><div><strong>${escapeHtml(provenance)}</strong> · ${escapeHtml(relation.confidence)}</div><p>${escapeHtml(relation.explanation)}</p>${relation.evidence ? `<blockquote>${escapeHtml(relation.evidence)}</blockquote>` : ''}<div class="section-note">Source pages: ${escapeHtml((relation.pages || []).join(', '))} · Target pages: ${escapeHtml((relation.target_pages || []).join(', '))}</div>`;
+                    links.appendChild(item);
+                });
+                container.appendChild(links);
+                const impacts = document.createElement('div');
+                impacts.className = 'heatmap-item';
+                impacts.innerHTML = '<strong>Linked-clause review paths</strong>';
+                data.impact_analysis.forEach(path => {
+                    const source = clauseById.get(path.clause_id);
+                    const names = path.related_clause_ids.map(id => clauseById.get(id)?.title || id);
+                    const p = document.createElement('p');
+                    p.textContent = `${source?.title || path.clause_id}: ${names.join(' · ')}. ${path.note}`;
+                    impacts.appendChild(p);
+                });
+                if (!data.impact_analysis.length) impacts.append('No linked paths were identified.');
+                container.appendChild(impacts);
+                limits.textContent = data.methodology?.limitations || 'Review every relationship against the original contract.';
+            } catch (error) {
+                if (error.name !== 'AbortError') container.textContent = error.message;
             }
         }
 
