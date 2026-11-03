@@ -61,8 +61,8 @@ def test_graph_contains_clause_nodes_and_relationship_edges():
 
 def test_llm_relationship_requires_valid_ids_type_page_and_verbatim_evidence():
     document = make_document(
-        "1. PAYMENT\\nThe customer shall pay each invoice within 30 days.\\n"
-        "2. LATE PAYMENT\\nOverdue payments may accrue interest after a delay."
+        "1. PAYMENT\nThe customer shall pay each invoice within 30 days.\n"
+        "2. LATE PAYMENT\nOverdue payments may accrue interest after a delay."
     )
     clauses = __import__("core.legal_intelligence", fromlist=["extract_clause_evidence"]).extract_clause_evidence(document)
     source_id, target_id = clauses[0].clause_id, clauses[1].clause_id
@@ -85,8 +85,8 @@ def test_llm_relationship_requires_valid_ids_type_page_and_verbatim_evidence():
 
 def test_llm_hallucinated_evidence_is_rejected():
     document = make_document(
-        "1. PAYMENT\\nThe customer shall pay within 30 days.\\n"
-        "2. LATE PAYMENT\\nOverdue payments may accrue interest."
+        "1. PAYMENT\nThe customer shall pay within 30 days.\n"
+        "2. LATE PAYMENT\nOverdue payments may accrue interest."
     )
     clauses = __import__("core.legal_intelligence", fromlist=["extract_clause_evidence"]).extract_clause_evidence(document)
     import json
