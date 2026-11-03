@@ -153,3 +153,16 @@ test('Tamil judgment selection explains negotiation restriction', () => {
     assert.match(app.document.getElementById('review-scope').textContent,/பேச்சுவார்த்தை/);
     assert.equal(app.document.getElementById('stat-type').textContent,'தீர்ப்பு / நீதிமன்ற ஆணை');
 });
+
+
+test('clause map explains relationships in everyday language', () => {
+    assert.ok(html.includes('How the clauses connect'));
+    assert.ok(html.includes('How to read this map'));
+    assert.ok(html.includes('Why these parts are connected'));
+    assert.ok(html.includes('Show the exact words from the contract'));
+    assert.ok(html.includes('Please verify this possible connection'));
+    assert.ok(html.includes('No clear connections were found'));
+    assert.ok(script.includes('function simpleRelationshipLabel'));
+    assert.ok(script.includes('function simpleRelationshipExplanation'));
+    assert.ok(!html.includes('Explicit links are resolved from wording in the contract. Inferred links are keyword-based candidates only'));
+});
