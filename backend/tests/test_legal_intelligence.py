@@ -37,7 +37,7 @@ def test_extracts_numbered_and_article_headings_with_original_text():
     assert clauses[0].text == "MASTER SERVICES AGREEMENT"
     assert clauses[1].title == "1. PAYMENT TERMS"
     assert clauses[1].heading_detected is True
-    assert clauses[1].text == "1. PAYMENT TERMS\\nCustomer shall pay within 30 days."
+    assert clauses[1].text == "1. PAYMENT TERMS\nCustomer shall pay within 30 days."
     assert clauses[1].pages == [1]
     assert clauses[2].title == "ARTICLE II — DEFINITIONS"
     assert "“Services” means the services described in Schedule A." in clauses[2].text
