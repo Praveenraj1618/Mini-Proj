@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from config import (get_llm, get_llm_candidates, RETRIEVAL_TOP_K, check_api_key_configured,
                     HYBRID_RETRIEVAL_ENABLED, SUMMARY_CONTEXT_CHARS)
 from core.llm_diagnostics import LLMProviderError, provider_diagnostic, record_failure
-from core.document_analysis import contract_pages, evidence_windows, contract_changes
+from core.document_analysis import contract_pages, evidence_windows
 from core.document_loader import LoadedDocument, ExtractedImage
 from core.vector_store import LegalVectorStore
 from core.hybrid_retriever import LegalHybridRetriever
@@ -826,59 +826,3 @@ Produce a structured negotiation analysis JSON with this structure:
                 })
         return obligations
 
-    @staticmethod
-    def compare_contracts(reviewer_v1: 'LegalReviewer', reviewer_v2: 'LegalReviewer') -> Dict[str, Any]:
-        """Detect all text changes first; assess legal impact in bounded batches."""
-        changes = contract_changes(reviewer_v1.document, reviewer_v2.document)
-        result = {
-            "doc1_name": reviewer_v1.document.file_name,
-            "doc2_name": reviewer_v2.document.file_name,
-            "total_changes_detected": len(changes),
-            "comparison_table": changes,
-            "status": "no_changes" if not changes else "text_only",
-            "warnings": reviewer_v1.document.warnings + reviewer_v2.document.warnings,
-            "comparison_scope": "All readable contract text; counts are text changes, not a count of legal clauses.",
-        }
-        if set(detect_languages(reviewer_v1.document.full_text)) != set(detect_languages(reviewer_v2.document.full_text)):
-            result['status'] = 'language_mismatch'
-            result['warnings'].append('Different scripts/languages detected. Translation equivalence is not assessed; text differences are not legal changes.')
-            return result
-        if not changes or not check_api_key_configured():
-            return result
-
-        failed = 0
-        # Two bounded text differences per request. The model cannot overwrite evidence/counts.
-        for offset in range(0, len(changes), 2):
-            batch = changes[offset:offset + 2]
-            try:
-                response = reviewer_v1._invoke_llm([
-                    SystemMessage(content=LEGAL_SYSTEM_PROMPT),
-                    HumanMessage(content=(
-                        "Assess the legal impact of these actual document text differences. "
-                        "Do not invent changes. Surrounding context may be incomplete: use REVIEW REQUIRED "
-                        "when impact cannot be established. Return ONLY a JSON array containing one object "
-                        "per change_id, with change_id (integer), impact (LOW, MODERATE, HIGH, or REVIEW REQUIRED), "
-                        "and analysis (string).\n\n" + json.dumps(batch, ensure_ascii=False)
-                    )),
-                ], max_tokens=1200)
-                items = parse_llm_json_array(response)
-                indexed = {item.get("change_id"): item for item in items if isinstance(item, dict)}
-                if len(items) != len(batch) or set(indexed) != {change["change_id"] for change in batch}:
-                    raise ValueError("Comparison omitted or invented a change ID.")
-                validated = []
-                for change in batch:
-                    item = indexed[change["change_id"]]
-                    impact = str(item.get("impact", "")).upper()
-                    analysis = item.get("analysis")
-                    if impact not in {"LOW", "MODERATE", "HIGH", "REVIEW REQUIRED"} or not isinstance(analysis, str) or not analysis.strip():
-                        raise ValueError("Invalid comparison assessment.")
-                    validated.append((change, impact, analysis))
-                for change, impact, analysis in validated:
-                    change.update(impact=impact, analysis=analysis)
-            except Exception:
-                failed += len(batch)
-                for change in batch:
-                    change["analysis"] = "AI impact analysis failed; this is a real textual difference requiring manual review."
-        result["failed_assessments"] = failed
-        result["status"] = "analyzed" if not failed else "analysis_failed" if failed == len(changes) else "partial_analysis"
-        return result
