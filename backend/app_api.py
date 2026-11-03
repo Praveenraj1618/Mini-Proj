@@ -385,6 +385,15 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
                 })
                 return
 
+            if path == "/api/simplify":
+                payload = self._read_json()
+                clause_id = str(payload.get("clause_id", "")).strip()
+                if not clause_id:
+                    raise RequestError("A clause_id is required.")
+                reviewer = self._require_reviewer()
+                self._send_json(reviewer.simplify_clause(clause_id))
+                return
+
             if path == "/api/qa":
                 question = str(self._read_json().get("question", "")).strip()
                 if not question:
