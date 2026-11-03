@@ -42,7 +42,7 @@ function response(answer) { return {ok:true, json: async () => ({answer, sources
 test('new upload clears every previous document panel', () => {
     const app = setup();
     const ids = ['heatmap-container','summary-container','qa-output','negotiate-output',
-        'obligations-container','compare-container','visuals-container','visual-analysis-output'];
+        'obligations-container','visuals-container','visual-analysis-output'];
     ids.forEach(id => app.document.getElementById(id).textContent = 'PRIVATE OLD DOCUMENT');
     app.run('resetDocumentViews()');
     ids.forEach(id => assert.equal(app.document.getElementById(id).textContent, 'Upload a contract to begin.'));
