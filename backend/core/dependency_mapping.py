@@ -6,7 +6,7 @@ must not be read as contractual dependencies or legal conclusions.
 """
 import re
 from collections import deque
-from typing import Dict, Iterable, List
+from typing import Dict, List
 
 from core.legal_intelligence import extract_clause_evidence
 
@@ -100,7 +100,7 @@ def build_clause_relationships(document) -> dict:
             if not pair:
                 continue
             if any(
-                rel["source"] == left["clause_id"] and rel["target"] == right["clause_id"]
+                {rel["source"], rel["target"]} == {left["clause_id"], right["clause_id"]}
                 for rel in relationships
             ):
                 continue
@@ -126,9 +126,11 @@ def build_clause_relationships(document) -> dict:
 
     adjacency = {}
     for rel in relationships:
+        # Traversal is intentionally undirected: a clause can be affected by a
+        # reference made from another section, while the displayed graph keeps
+        # the original source-to-target direction.
         adjacency.setdefault(rel["source"], []).append(rel["target"])
-        if rel["source_type"] == "inferred":
-            adjacency.setdefault(rel["target"], []).append(rel["source"])
+        adjacency.setdefault(rel["target"], []).append(rel["source"])
 
     impact = []
     for clause in clauses:
