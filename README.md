@@ -91,13 +91,14 @@ question -> dense + BM25 candidates -> RRF rank fusion -> optional reranker
 | PDF/OCR/chunking | `backend/core/document_loader.py`, `chunker.py` | Extracts page text or local OCR, carries page references and splits readable text. |
 | Retrieval | `backend/core/retrieval_embeddings.py`, `vector_store.py`, `hybrid_retriever.py` | Multilingual E5 embeddings, per-document Chroma index, BM25, reciprocal rank fusion and optional cross-encoder. |
 | Review logic | `backend/core/legal_reviewer.py`, `review_workflow.py`, `review_profiles.py` | Category routing, summary, heatmap, Q&A, obligations, negotiation and comparisons. |
+| Clause structure and relationships | `backend/core/legal_intelligence.py`, `dependency_mapping.py` | Extracts page-grounded clause sections, resolves explicit cross-references, labels heuristic thematic links, and returns a directed relationship graph plus connected-clause review paths. |
 | Dashboard | `frontend/index.html` | Single-page UI, language/category controls, loading and result panels. |
 
 Dense retrieval matches meaning (including cross-language queries); BM25 matches exact words and clause identifiers. RRF combines their ranked candidates. The English cross-encoder reranker is used for English-only content when enabled; for Tamil/Hindi or mixed content it is skipped unless `MULTILINGUAL_RERANKER_MODEL` is explicitly set. `RERANKER_ENABLED=false` disables reranking. The LLM operates **after** retrieval to synthesize answers; it is also used for summaries, category suggestions, obligation extraction, risk analysis and drafting. Tesseract handles OCR locally; it is not the LLM.
 
 Supported broad categories include NDA, services, employment, lease, property, judgments, pleadings, affidavits, legislation, corporate records, wills, powers of attorney, notices, policies, IP licences and other contracts, with an unknown/mixed fallback. This is category routing, **not proof of accuracy for every subtype or jurisdiction**.
 
-Main API routes: `GET /api/status`, `GET /api/summary`, `GET /api/heatmap`, `GET /api/obligations?include_status=1`, `GET /api/visuals`; `POST /api/upload`, `POST /api/qa`, `POST /api/negotiate`, `POST /api/compare`, `POST /api/visuals/analyze`, `POST /api/llm/check`. Upload and analysis use a browser session cookie; use the served UI for the simplest end-to-end workflow. The [frontend integration guide](frontend/README_FRONTEND.md) has API examples.
+Main API routes: `GET /api/status`, `GET /api/summary`, `GET /api/heatmap`, `GET /api/obligations?include_status=1`, `GET /api/visuals`, `GET /api/dependencies`; `POST /api/upload`, `POST /api/qa`, `POST /api/negotiate`, `POST /api/compare`, `POST /api/visuals/analyze`, `POST /api/llm/check`. Upload and analysis use a browser session cookie; use the served UI for the simplest end-to-end workflow. The [frontend integration guide](frontend/README_FRONTEND.md) has API examples.
 
 ## Tests and evaluation
 
