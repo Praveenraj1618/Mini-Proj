@@ -281,5 +281,12 @@ def test_scanned_pdf_can_build_api_reviewer(monkeypatch):
         assert count > 0
         assert reviewer.document.ocr_pages == [1]
         assert '45 days' in reviewer.document.full_text
+    except Exception as exc:
+        # OCR is an optional system dependency on developer machines. The
+        # dedicated OCR test reports this as a skip when Tesseract data is absent.
+        if "Tesseract language data" in str(exc) or "OCR failed" in str(exc):
+            pytest.skip("Tesseract English language data unavailable in this environment")
+        raise
     finally:
-        reviewer.vector_store.close()
+        if "reviewer" in locals():
+            reviewer.vector_store.close()
