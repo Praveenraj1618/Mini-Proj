@@ -343,6 +343,7 @@ def test_fixture_banners_are_removed_and_document_metadata_is_grouped():
     assert all("TEST DATA NOTICE" not in clause.text for clause in clauses)
     metadata = [clause for clause in clauses if clause.title == "Document information"]
     assert len(metadata) == 1
+    assert not any(clause.title == "Unclassified section" for clause in clauses)
     assert "PARTIES" in metadata[0].text
     assert "EFFECTIVE / REFERENCE" in metadata[0].text
     assert "12 September 2026" in metadata[0].text
