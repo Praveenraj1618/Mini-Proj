@@ -40,6 +40,16 @@ def _clause_number(clause: dict):
     return match.group(1).lower() if match else None
 
 
+def _matching_pages(document, quote: str) -> List[int]:
+    normalized_quote = " ".join(quote.split())
+    if not normalized_quote:
+        return []
+    return [
+        page.page_num for page in document.pages
+        if normalized_quote in " ".join(page.text.split())
+    ]
+
+
 def _relationship_type(cue: str) -> str:
     cue = (cue or "").lower()
     if "subject to" in cue:
@@ -84,7 +94,8 @@ def build_clause_relationships(document, llm_invoke=None) -> dict:
                 "source": source["clause_id"], "target": target["clause_id"],
                 "type": rel_type, "source_type": "explicit",
                 "confidence": "direct_reference", "evidence": evidence,
-                "pages": source["pages"], "target_pages": target["pages"],
+                "pages": _matching_pages(document, match.group(0)) or source["pages"],
+                "target_pages": target["pages"],
                 "explanation": f'This clause expressly refers to “{target["title"]}”.',
             })
 
@@ -130,14 +141,14 @@ def build_clause_relationships(document, llm_invoke=None) -> dict:
         llm_status = "completed"
         clauses_by_id = {clause["clause_id"]: clause for clause in clauses}
         pair_payload = []
-        for rel in heuristic_pairs[:20]:
+        for rel in heuristic_pairs[:10]:
             source = clauses_by_id[rel["source"]]
             target = clauses_by_id[rel["target"]]
             pair_payload.append({
                 "source": source["clause_id"], "source_title": source["title"],
-                "source_pages": source["pages"], "source_text": source["text"][:1400],
+                "source_pages": source["pages"], "source_text": source["text"][:900],
                 "target": target["clause_id"], "target_title": target["title"],
-                "target_pages": target["pages"], "target_text": target["text"][:1400],
+                "target_pages": target["pages"], "target_text": target["text"][:900],
             })
         prompt = (
             "You are identifying possible implicit relationships between candidate contract sections. "
@@ -175,11 +186,14 @@ def build_clause_relationships(document, llm_invoke=None) -> dict:
                 normalized_source = " ".join(source["text"].split())
                 if normalized_quote not in normalized_source:
                     continue
+                evidence_pages = _matching_pages(document, evidence)
+                if page not in evidence_pages:
+                    continue
                 accepted.append({
                     "source": source_id, "target": target_id,
                     "type": rel_type, "source_type": "inferred",
                     "confidence": "model_candidate_not_calibrated",
-                    "evidence": evidence.strip(), "pages": [page],
+                    "evidence": evidence.strip(), "pages": evidence_pages,
                     "target_pages": target["pages"],
                     "explanation": str(item.get("explanation") or
                         "The model identified a possible interaction; verify it against both clauses."),
