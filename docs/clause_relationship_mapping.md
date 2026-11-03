@@ -1,47 +1,53 @@
 # Clause relationship mapping
 
-ClauseIQ exposes `GET /api/dependencies` for the currently uploaded document. The endpoint uses the same page-aware PDF extraction and section filtering as the existing review pipeline.
+ClauseIQ exposes `GET /api/dependencies` for the currently uploaded document. The mapper preserves source wording and page provenance, then builds a deliberately conservative relationship map.
 
 ## Pipeline
 
-1. **Section extraction** — `core.legal_intelligence.extract_clause_evidence` identifies conservative numbered/article/section headings, keeps original wording, retains page numbers across page breaks, and preserves unclassified text rather than silently dropping it.
-2. **Explicit references** — `core.dependency_mapping` detects phrases such as “subject to Clause 2”, “notwithstanding Section 4”, and “see Article II”. A reference is emitted only when its identifier resolves to a detected section.
-3. **Candidate thematic links** — a small keyword rule set identifies candidate clause pairs sharing payment, late-payment, breach, termination, or notice concepts.
-4. **Optional LLM enrichment** — when an LLM provider is configured, at most ten candidate pairs are sent for bounded analysis. A model-suggested relationship is accepted only if its clause IDs and relationship type are allowed, its quote appears verbatim in the source clause, and its cited page contains that quote. Model confidence is explicitly uncalibrated. Invalid or unavailable model output falls back to the deterministic candidate links.
-5. **Graph and traversal** — graph nodes represent extracted sections; directed edges preserve the direction of explicit textual references. Connected-clause paths are traversed in both directions so a section can show references made to it as well as references it makes.
+1. **Clause selection** — `core.legal_intelligence.extract_clause_evidence` identifies candidate sections. The dependency mapper includes only recognized numbered, article, or section headings. Unclassified preamble text and date-like headings are excluded from the graph; recognized clauses remain in the clause inventory.
+2. **Explicit references** — `core.dependency_mapping` detects phrases such as “subject to Clause 2”, “notwithstanding Section 4”, and “see Article II”. A relationship is emitted only when the referenced identifier resolves to another recognized clause.
+3. **Model-assisted semantic review** — when an LLM provider is configured, up to 24 clause pairs are reviewed. No keyword-only edges are generated. A suggested relationship is accepted only when both clause IDs and the relationship type are valid, both quotations appear verbatim in their respective clauses, and each cited page contains its quotation. Model confidence remains uncalibrated.
+4. **Graph and inventory** — the graph contains only clauses participating in accepted relationships. Clauses without a supported connection remain in `isolated_clauses` and the full clause inventory; they are not connected merely to make the graph look populated.
+5. **Review paths** — connected-clause traversal is undirected for discovery, while each displayed relationship retains its source-to-target direction.
 
 ## Relationship object
 
 ```json
 {
-  "source": "clause-0001-...",
-  "target": "clause-0002-...",
+  "source": "clause-0002-...",
+  "target": "clause-0001-...",
   "type": "depends_on",
-  "source_type": "explicit",
-  "confidence": "direct_reference",
-  "evidence": "Subject to Clause 2 ...",
-  "pages": [1],
-  "target_pages": [2],
-  "explanation": "This clause expressly refers to ..."
+  "source_type": "inferred",
+  "confidence": "model_candidate_not_calibrated",
+  "source_evidence": "Exact quotation from the source clause",
+  "target_evidence": "Exact quotation from the target clause",
+  "pages": [2],
+  "target_pages": [1],
+  "explanation": "Cautious explanation of the possible interaction"
 }
 ```
 
-Relationship types currently emitted:
+Relationship direction is defined as follows:
 
-- `depends_on` — the source uses “subject to”.
-- `overrides` — the source uses “notwithstanding”.
-- `exception_to` — the source uses “except as provided in”.
-- `references` — another recognized cross-reference cue, or an uncued clause/section/article reference.
-- `related_to` — inferred keyword co-occurrence candidate when no more specific evidence-checked model link is accepted.
-- `triggers`, `modifies`, `survives_termination`, and `defines` — optional model-suggested relationships; these remain inferred and require human verification.
+- `depends_on` — source clause relies on the target clause.
+- `defines` — source clause supplies a definition used by the target.
+- `exception_to` / `overrides` — source clause is the exception or overriding rule; target is the baseline rule.
+- `triggers` — source clause states a trigger; target contains the possible resulting provision.
+- `modifies` — source clause changes how the target provision operates.
+- `survives_termination` — source clause states a provision that continues after termination.
+- `related_to` — a supported interaction is identified, but a more specific type is not justified.
+- `references` — an explicit textual cross-reference without a stronger directional cue.
+
+Explicit links are grounded in the contract's cross-reference wording. Inferred links are model candidates, not calibrated legal conclusions, even when both quotations are verified.
 
 ## Limitations and safe interpretation
 
-- Heading recognition is heuristic. Unrecognized structures may be retained as unclassified sections or may not resolve as a reference target.
-- Cross-document references, schedules/annexures without recognizable headings, OCR mistakes, and implicit dependencies may be missed.
-- Keyword overlap does not prove a legal relationship. Heuristic edges have no verbatim evidence quote. Model-suggested edges carry a source quotation and page check, but their interpretation and confidence are not legally authoritative.
-- The graph and connected-clause paths identify where a reviewer may want to look next. They do not establish that a breach, penalty, termination, or other legal consequence will occur.
-- Page citations identify source pages, not legal authority. Review the original PDF and consult a qualified legal professional for legal interpretation.
+- Heading recognition remains heuristic. Unrecognized headings, schedules, annexures, cross-document references, and OCR errors may be missed.
+- Model review is bounded to the first 24 clause pairs; relationships outside that review budget may be missed.
+- Exact quotations prove that the cited wording exists; they do not prove that the model's interpretation of the interaction is legally correct.
+- An empty graph is a valid result when no relationship is sufficiently supported. It is preferable to fabricated or keyword-only connections.
+- Graph links and review paths identify clauses worth reading together. They do not establish breach, penalties, termination, or other automatic legal consequences.
+- Review the original PDF and consult a qualified legal professional for legal interpretation.
 
 ## Tests
 
