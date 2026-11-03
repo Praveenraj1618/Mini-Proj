@@ -28,6 +28,7 @@ from core.legal_reviewer import LegalReviewer
 from core.legal_intelligence import extract_clause_evidence
 from langchain_core.messages import HumanMessage
 from core.vector_store import LegalVectorStore
+from core.dependency_mapping import build_clause_relationships
 
 
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
@@ -308,8 +309,23 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
                 return
 
             reviewer = None
-            if path in ("/api/summary", "/api/heatmap", "/api/obligations", "/api/visuals"):
+            if path in ("/api/summary", "/api/heatmap", "/api/obligations", "/api/visuals", "/api/dependencies"):
                 reviewer = self._require_reviewer()
+            if path == "/api/dependencies":
+                cache_key = (reviewer.response_language, reviewer.category_override)
+                cache = getattr(reviewer, "_dependency_mapping_cache", {})
+                if cache_key not in cache:
+                    llm_invoke = None
+                    if check_api_key_configured():
+                        llm_invoke = lambda prompt: reviewer._invoke_llm(
+                            [HumanMessage(content=prompt)], max_tokens=1800
+                        )
+                    cache[cache_key] = build_clause_relationships(
+                        reviewer.document, llm_invoke=llm_invoke
+                    )
+                    reviewer._dependency_mapping_cache = cache
+                self._send_json(cache[cache_key])
+                return
             if path == "/api/visuals":
                 self._send_json({
                     "document_id": reviewer.document_id,
