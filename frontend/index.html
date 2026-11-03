@@ -297,15 +297,24 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                 <div id="dependencies-tab" class="tab-content hidden">
                     <div class="glass-card">
                         <div class="card-header">
-                            <span class="card-title">Clause relationship explorer</span>
-                            <span class="section-note">Explicit references and inferred review leads</span>
+                            <span class="card-title">How the clauses connect</span>
+                            <span class="section-note">A plain-language guide to related parts of your document</span>
                         </div>
-                        <p class="section-note">Explicit links are resolved from wording in the contract. Inferred links are keyword-based candidates only; they do not establish legal dependency or automatic consequences.</p>
+                        <div class="heatmap-item" style="margin-bottom:1rem;">
+                            <strong>How to read this map</strong>
+                            <p style="margin:.45rem 0;">Each box is one part of your contract. A line means the two parts may need to be read together.</p>
+                            <p style="margin:.45rem 0;"><strong>Follow the arrow →</strong> to see which part points to, explains, or may affect the other part.</p>
+                            <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:.65rem;">
+                                <span><span style="color:#16794b;font-weight:800;">━━ Green</span> — the contract directly mentions the other part.</span>
+                                <span><span style="color:#a66a12;font-weight:800;">━━ Gold</span> — AI found a possible connection; please check it.</span>
+                            </div>
+                            <p class="section-note" style="margin:.65rem 0 0;">A connection is a reading guide, not proof that a fine, breach, or other result will automatically happen.</p>
+                        </div>
                         <div id="dependencies-summary" class="summary-grid" aria-live="polite"></div>
                         <div class="heatmap-item">
-                            <strong>Clause dependency graph</strong>
-                            <p class="section-note">Arrows show the direction of a textual reference. Dashed links are inferred review candidates.</p>
-                            <div id="dependency-graph" style="width:100%;overflow-x:auto;" role="region" aria-label="Clause dependency graph"><p>Graph will appear after analysis.</p></div>
+                            <strong>Connected parts of your contract</strong>
+                            <p class="section-note">Each connection below explains, in everyday language, why two parts may be related.</p>
+                            <div id="dependency-graph" style="width:100%;overflow-x:auto;" role="region" aria-label="Plain-language clause relationship map"><p>The connections will appear after analysis.</p></div>
                         </div>
                         <div id="dependencies-container" class="heatmap-list">
                             <p>Upload a contract, then open Clause map.</p>
@@ -845,6 +854,37 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
             }
         }
 
+        function simpleRelationshipLabel(type) {
+            const labels = {
+                depends_on: 'Needs the other clause',
+                overrides: 'Takes priority over the other clause',
+                exception_to: 'Makes an exception to the other clause',
+                references: 'Points to the other clause',
+                triggers: 'May activate a rule in the other clause',
+                modifies: 'Changes how the other clause works',
+                survives_termination: 'Continues after the agreement ends',
+                defines: 'Explains a term used in the other clause',
+                related_to: 'May work together with the other clause'
+            };
+            return labels[type] || 'May be connected to the other clause';
+        }
+
+        function simpleRelationshipExplanation(type, sourceTitle, targetTitle, inferred) {
+            const explanations = {
+                depends_on: `“${sourceTitle}” says its rule depends on “${targetTitle}”. You may need to read both parts to understand what must happen.`,
+                overrides: `“${sourceTitle}” may take priority over “${targetTitle}” if the two parts say different things.`,
+                exception_to: `“${sourceTitle}” describes an exception to the general rule in “${targetTitle}”. Check when that exception applies.`,
+                references: `“${sourceTitle}” points readers to “${targetTitle}” for another part of the agreement. Read that part too.`,
+                triggers: `“${sourceTitle}” describes something that may activate a rule in “${targetTitle}”. Check the event and the rule together.`,
+                modifies: `“${sourceTitle}” may change how the rule in “${targetTitle}” works. Read both before deciding what the agreement requires.`,
+                survives_termination: `“${sourceTitle}” says that something may continue even after the agreement ends. “${targetTitle}” helps explain the rule it relates to.`,
+                defines: `“${sourceTitle}” explains a word or phrase used in “${targetTitle}”. Its definition can change how that part is understood.`,
+                related_to: `These two parts appear to deal with connected issues. Reading them together may give a fuller picture.`
+            };
+            const plain = explanations[type] || `These two parts may be connected. Read “${sourceTitle}” and “${targetTitle}” together.`;
+            return inferred ? plain + ' This is an AI-suggested connection, so check the quoted wording before relying on it.' : plain;
+        }
+
         async function loadDependencies() {
             if (!requireDocument()) return;
             switchTab('dependencies-tab');
@@ -852,7 +892,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
             const summary = document.getElementById('dependencies-summary');
             const limits = document.getElementById('dependencies-limits');
             const graphBox = document.getElementById('dependency-graph');
-            container.textContent = 'Reviewing clause relationships...';
+            container.textContent = 'Reading the contract and finding related parts...';
             summary.replaceChildren();
             graphBox.textContent = '';
             limits.textContent = '';
@@ -861,9 +901,9 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                 const explicit = data.relationships.filter(item => item.source_type === 'explicit');
                 const inferred = data.relationships.filter(item => item.source_type === 'inferred');
                 const stats = [
-                    ['Contract clauses', data.clauses.length],
-                    ['Explicit references', explicit.length],
-                    ['Evidence-backed candidates', inferred.length]
+                    ['Parts found', data.clauses.length],
+                    ['Direct mentions', explicit.length],
+                    ['Possible connections to check', inferred.length]
                 ];
                 summary.innerHTML = stats.map(([label, value]) =>
                     `<div class="stat-box"><div class="stat-label">${escapeHtml(label)}</div><div class="stat-val">${escapeHtml(value)}</div></div>`
@@ -871,7 +911,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
 
                 const clauseById = new Map(data.clauses.map(clause => [clause.clause_id, clause]));
                 if (!data.relationships.length) {
-                    graphBox.innerHTML = '<div class="evidence-card"><strong>No supported clause relationships found.</strong><p>The system will not draw connections just because clauses share keywords. All detected clauses remain available in the inventory below.</p></div>';
+                    graphBox.innerHTML = '<div class="evidence-card"><strong>No clear connections were found.</strong><p>That does not mean the contract has no important links. It means the system could not find a connection it could support with the wording available. You can still read every part in the list below.</p></div>';
                 } else {
                     const rows = data.relationships.map(relation => {
                         const source = clauseById.get(relation.source);
@@ -881,46 +921,46 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                         const edgeColor = inferredLink ? '#a66a12' : '#16794b';
                         const sourceQuote = relation.source_evidence || relation.evidence || '';
                         const targetQuote = relation.target_evidence || '';
+                        const simpleLabel = simpleRelationshipLabel(relation.type);
+                        const simpleExplanation = simpleRelationshipExplanation(relation.type, source.title, target.title, inferredLink);
                         return `
-                            <div class="dependency-edge-row" style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(130px,0.65fr) minmax(180px,1fr);gap:12px;align-items:center;padding:14px;border:1px solid var(--border-color,#dce1e8);border-radius:12px;background:var(--surface,#fff);margin-bottom:12px;">
-                                <div style="min-width:0;padding:12px;border:1px solid #c9b477;border-radius:9px;">
+                            <article class="dependency-edge-row" style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(150px,.8fr) minmax(180px,1fr);gap:12px;align-items:center;padding:14px;border:1px solid var(--border-color,#dce1e8);border-radius:12px;background:var(--surface,#fff);margin-bottom:12px;">
+                                <div style="min-width:0;padding:12px;border:1px solid #c9b477;border-radius:9px;background:#fffdf7;">
+                                    <div class="section-note">START HERE · Page(s) ${escapeHtml((source.pages || []).join(', '))}</div>
                                     <strong>${escapeHtml(source.title)}</strong>
-                                    <div class="section-note">Source · Page(s) ${escapeHtml((source.pages || []).join(', '))}</div>
                                 </div>
                                 <div style="text-align:center;min-width:0;">
-                                    <div style="color:${edgeColor};font-weight:700;overflow-wrap:anywhere;">${escapeHtml(relation.type.replaceAll('_',' '))}</div>
-                                    <div style="font-size:1.4rem;color:${edgeColor};line-height:1.5;">→</div>
-                                    <span class="section-note">${inferredLink ? 'Inferred · verify' : 'Explicit reference'}</span>
+                                    <div style="color:${edgeColor};font-weight:750;overflow-wrap:anywhere;">${escapeHtml(simpleLabel)}</div>
+                                    <div aria-hidden="true" style="font-size:1.5rem;color:${edgeColor};line-height:1.5;">→</div>
+                                    <span class="section-note">${inferredLink ? 'AI found a possible link' : 'The contract directly points here'}</span>
                                 </div>
-                                <div style="min-width:0;padding:12px;border:1px solid #c9b477;border-radius:9px;">
+                                <div style="min-width:0;padding:12px;border:1px solid #c9b477;border-radius:9px;background:#fffdf7;">
+                                    <div class="section-note">READ THIS TOO · Page(s) ${escapeHtml((target.pages || []).join(', '))}</div>
                                     <strong>${escapeHtml(target.title)}</strong>
-                                    <div class="section-note">Target · Page(s) ${escapeHtml((target.pages || []).join(', '))}</div>
                                 </div>
-                                <div style="grid-column:1/-1;padding-top:8px;border-top:1px solid var(--border-color,#e5e7eb);">
-                                    <p style="margin:4px 0 8px;">${escapeHtml(relation.explanation || 'Review this relationship against the original contract.')}</p>
-                                    ${sourceQuote ? `<blockquote><strong>Source evidence · Page(s) ${escapeHtml((relation.pages || []).join(', '))}</strong><br>${escapeHtml(sourceQuote)}</blockquote>` : ''}
-                                    ${targetQuote ? `<blockquote><strong>Target evidence · Page(s) ${escapeHtml((relation.target_pages || []).join(', '))}</strong><br>${escapeHtml(targetQuote)}</blockquote>` : ''}
-                                    <div class="section-note">Evidence status: ${escapeHtml(relation.confidence)}</div>
+                                <div style="grid-column:1/-1;padding-top:10px;border-top:1px solid var(--border-color,#e5e7eb);">
+                                    <strong>Why these parts are connected</strong>
+                                    <p style="margin:4px 0 10px;line-height:1.6;">${escapeHtml(simpleExplanation)}</p>
+                                    <details style="margin-top:8px;">
+                                        <summary style="cursor:pointer;font-weight:650;color:var(--navy);">Show the exact words from the contract</summary>
+                                        ${sourceQuote ? `<blockquote><strong>From “${escapeHtml(source.title)}” · Page(s) ${escapeHtml((relation.pages || []).join(', '))}</strong><br>${escapeHtml(sourceQuote)}</blockquote>` : ''}
+                                        ${targetQuote ? `<blockquote><strong>From “${escapeHtml(target.title)}” · Page(s) ${escapeHtml((relation.target_pages || []).join(', '))}</strong><br>${escapeHtml(targetQuote)}</blockquote>` : ''}
+                                    </details>
+                                    <div class="section-note" style="margin-top:8px;">${inferredLink ? 'Please verify this possible connection in the original document.' : 'This connection is based on a direct reference in the contract.'}</div>
                                 </div>
-                            </div>`;
+                            </article>`;
                     }).join('');
-                    graphBox.innerHTML = `
-                        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;" class="section-note">
-                            <span>━━ Green: explicit contract reference</span>
-                            <span>━━ Gold: inferred candidate supported by both clauses</span>
-                        </div>
-                        <div aria-label="Directed clause relationship map">${rows}</div>
-                        <p class="section-note">Arrows point from the source clause to the clause it refers to, defines, qualifies, or otherwise interacts with. The relationship label and evidence explain the direction.</p>`;
+                    graphBox.innerHTML = `<div aria-label="Connected parts of the contract">${rows}</div>`;
                 }
 
                 container.replaceChildren();
                 const inventory = document.createElement('div');
                 inventory.className = 'heatmap-item';
-                inventory.innerHTML = '<strong>Clause inventory</strong><p class="section-note">All recognized clauses are listed here, including clauses that have no supported relationship.</p>';
+                inventory.innerHTML = '<strong>All parts found in your contract</strong><p class="section-note">These are the sections the system recognized. Select the page number to find them in your PDF.</p>';
                 data.clauses.forEach(clause => {
                     const item = document.createElement('div');
                     item.className = 'evidence-card';
-                    item.innerHTML = `<div class="evidence-head"><span>${escapeHtml(clause.title)}</span><span>Pages ${escapeHtml((clause.pages || []).join(', '))}</span></div><div class="source-text">${escapeHtml(clause.text.slice(0, 500))}${clause.text.length > 500 ? '…' : ''}</div>`;
+                    item.innerHTML = `<div class="evidence-head"><span>${escapeHtml(clause.title)}</span><span>Page(s) ${escapeHtml((clause.pages || []).join(', '))}</span></div><div class="source-text">${escapeHtml(clause.text.slice(0, 500))}${clause.text.length > 500 ? '…' : ''}</div>`;
                     inventory.appendChild(item);
                 });
                 container.appendChild(inventory);
@@ -929,7 +969,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                 if (isolated.length) {
                     const isolatedSection = document.createElement('div');
                     isolatedSection.className = 'heatmap-item';
-                    isolatedSection.innerHTML = `<strong>Unlinked clauses (${isolated.length})</strong><p class="section-note">No sufficiently supported relationship was found for these clauses. They are intentionally not connected to unrelated nodes.</p>`;
+                    isolatedSection.innerHTML = `<strong>Parts with no clear connection (${isolated.length})</strong><p class="section-note">No strong link to another part was found. These sections are not being left out; they simply stand on their own in this map.</p>`;
                     isolated.forEach(clause => {
                         const p = document.createElement('p');
                         p.textContent = `${clause.title} · Page(s) ${(clause.pages || []).join(', ')}`;
@@ -937,7 +977,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                     });
                     container.appendChild(isolatedSection);
                 }
-                limits.textContent = [data.diagnostic, data.methodology?.limitations].filter(Boolean).join(' ') || 'Review all suggested relationships against the original contract.';
+                limits.textContent = [data.diagnostic, 'This map is a reading aid, not legal advice. A connection does not by itself mean that one clause cancels another or that a penalty automatically applies. Check the original wording and ask a qualified professional if the meaning affects an important decision.', data.methodology?.limitations].filter(Boolean).join(' ');
             } catch (error) {
                 if (error.name !== 'AbortError') container.textContent = error.message;
             }
