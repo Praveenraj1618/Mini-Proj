@@ -12,6 +12,18 @@ from typing import List, Optional
 from core.document_analysis import contract_pages
 
 
+_METADATA_HEADINGS = {
+    "PARTIES", "EFFECTIVE DATE", "REFERENCE DATE", "EFFECTIVE / REFERENCE",
+    "DATE", "CASE DETAILS", "CASE INFORMATION", "DOCUMENT DETAILS",
+    "DOCUMENT INFORMATION",
+}
+
+_FIXTURE_NOISE_MARKERS = (
+    "clauseiq test fixture",
+    "clauseiq • legal document test set",
+    "test data notice",
+)
+
 _HEADING_PATTERNS = (
     re.compile(r"^ARTICLE\s+(?:[0-9]+|[IVXLCDM]+)(?:\s*[:.\-–—]?\s*.*)?$", re.I),
     re.compile(r"^SECTION\s+[0-9]+(?:\.[0-9]+)*(?:\s*[:.\-–—]?\s*.*)?$", re.I),
@@ -49,6 +61,16 @@ class ClauseEvidence:
             "following_context": self.following_context,
             "citations": [f"[Page {page}]" for page in self.pages],
         }
+
+
+def _is_metadata_heading(line: str) -> bool:
+    normalized = re.sub(r"\\s+", " ", line.strip()).strip(" :.-–—").upper()
+    return normalized in _METADATA_HEADINGS
+
+
+def _is_fixture_noise(line: str) -> bool:
+    normalized = " ".join(line.lower().split())
+    return any(marker in normalized for marker in _FIXTURE_NOISE_MARKERS)
 
 
 def _heading_title(line: str) -> Optional[str]:
@@ -106,6 +128,7 @@ def extract_clause_evidence(document, context_chars: int = 400) -> List[ClauseEv
             "page_end": page_num,
             "pages": [page_num],
             "heading_detected": heading_detected,
+            "is_metadata": title == "Document information",
         }
         sections.append(current)
 
@@ -114,6 +137,23 @@ def extract_clause_evidence(document, context_chars: int = 400) -> List[ClauseEv
         if not lines:
             continue
         for line in lines:
+            # Benchmark banners and test-only notices are not legal evidence.
+            if _is_fixture_noise(line):
+                continue
+
+            # Parties/date/reference fields describe the document rather than
+            # forming independent operative clauses. Keep their source text,
+            # but group adjacent fields into one compact metadata section.
+            if _is_metadata_heading(line):
+                if current is None or not current.get("is_metadata"):
+                    start_section("Document information", page.page_num, False, line)
+                elif line:
+                    current["text_parts"].append(line)
+                    current["page_end"] = page.page_num
+                    if page.page_num not in current["pages"]:
+                        current["pages"].append(page.page_num)
+                continue
+
             heading = _heading_title(line)
             if heading:
                 start_section(heading, page.page_num, True, line)
