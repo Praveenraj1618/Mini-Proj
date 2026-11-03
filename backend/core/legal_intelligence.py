@@ -80,9 +80,9 @@ def _heading_title(line: str) -> Optional[str]:
     # Dates such as "12 September 2026" match the generic numbered-heading
     # heuristic; they are metadata values, never clause headings.
     if re.fullmatch(
-        r"(?:\\d{1,2}[./-]\\d{1,2}[./-]\\d{2,4}|"
-        r"\\d{1,2}\\s+[A-Za-z]+\\s+\\d{4}|"
-        r"[A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})",
+        r"(?:\d{1,2}[./-]\d{1,2}[./-]\d{2,4}|"
+        r"\d{1,2}\s+[A-Za-z]+\s+\d{4}|"
+        r"[A-Za-z]+\s+\d{1,2},?\s+\d{4})",
         candidate,
     ):
         return None
