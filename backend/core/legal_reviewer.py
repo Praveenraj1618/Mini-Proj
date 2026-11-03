@@ -217,7 +217,9 @@ class LegalReviewer(ReviewWorkflow):
             raise LLMProviderError(diagnostic)
 
         for provider, base_client in candidates:
-            for attempt in range(2):
+            # A short bounded retry protects against transient upstream 5xx errors
+            # without delaying provider failover indefinitely.
+            for attempt in range(3):
                 try:
                     client = base_client.bind(max_tokens=max_tokens)
                     response = self._message_text(client.invoke(messages))
@@ -235,9 +237,14 @@ class LegalReviewer(ReviewWorkflow):
                     return response
                 except Exception as error:
                     message = str(error)
+                    status = getattr(error, "status_code", None)
+                    is_transient_server_error = status in {500, 502, 503, 504}
                     is_rate_limit = "429" in message or "rate_limit" in message.lower()
+                    if is_transient_server_error and attempt < 2:
+                        time.sleep(1.0 * (2 ** attempt))
+                        continue
                     if is_rate_limit and attempt == 0:
-                        match = re.search(r"try again in\s+([\d.]+)s", message, re.IGNORECASE)
+                        match = re.search(r"try again in\\s+([\\d.]+)s", message, re.IGNORECASE)
                         wait_seconds = float(match.group(1)) if match else 2.0
                         time.sleep(min(max(wait_seconds + 0.5, 1.0), 5.0))
                         continue
