@@ -874,8 +874,16 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                 const edgeMarkup = data.graph.edges.map(edge => {
                     const from = positions.get(edge.source), to = positions.get(edge.target);
                     if (!from || !to) return '';
-                    const x1 = from.x + nodeWidth / 2, y1 = from.y + nodeHeight / 2;
-                    const x2 = to.x + nodeWidth / 2, y2 = to.y + nodeHeight / 2;
+                    let x1, y1, x2, y2;
+                    if (Math.abs(to.x - from.x) >= Math.abs(to.y - from.y)) {
+                        const forward = to.x >= from.x;
+                        x1 = from.x + (forward ? nodeWidth : 0); y1 = from.y + nodeHeight / 2;
+                        x2 = to.x + (forward ? 0 : nodeWidth); y2 = to.y + nodeHeight / 2;
+                    } else {
+                        const downward = to.y >= from.y;
+                        x1 = from.x + nodeWidth / 2; y1 = from.y + (downward ? nodeHeight : 0);
+                        x2 = to.x + nodeWidth / 2; y2 = to.y + (downward ? 0 : nodeHeight);
+                    }
                     const inferredEdge = edge.source_type === 'inferred';
                     return `<path d="M ${x1} ${y1} Q ${(x1+x2)/2} ${Math.min(y1,y2)-24} ${x2} ${y2}" fill="none" stroke="${inferredEdge ? '#b8862b' : '#16794b'}" stroke-width="2" ${inferredEdge ? 'stroke-dasharray="6 5"' : ''} marker-end="url(#dependency-arrow)"><title>${escapeHtml(edge.label)} · ${inferredEdge ? 'inferred candidate' : 'explicit reference'}</title></path>`;
                 }).join('');
