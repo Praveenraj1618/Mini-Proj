@@ -25,6 +25,7 @@ from config import (MAX_UPLOAD_MB, check_api_key_configured, configured_llm_prov
 from core.chunker import LegalChunker
 from core.document_loader import LegalDocumentLoader, LoadedDocument
 from core.legal_reviewer import LegalReviewer
+from core.legal_intelligence import extract_clause_evidence
 from langchain_core.messages import HumanMessage
 from core.vector_store import LegalVectorStore
 
@@ -382,6 +383,15 @@ class LegalAPIRequestHandler(BaseHTTPRequestHandler):
                     "document_id": reviewer.document_id,
                     "ocr_pages": reviewer.document.ocr_pages,
                     "warnings": reviewer.document.warnings,
+                })
+                return
+
+            if path == "/api/clauses":
+                reviewer = self._require_reviewer()
+                clauses = extract_clause_evidence(reviewer.document)
+                self._send_json({
+                    "document_id": reviewer.document_id,
+                    "clauses": [clause.to_dict() for clause in clauses],
                 })
                 return
 
