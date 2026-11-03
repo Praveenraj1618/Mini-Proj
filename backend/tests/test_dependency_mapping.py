@@ -1,3 +1,4 @@
+import json
 import sys
 from pathlib import Path
 
@@ -6,14 +7,15 @@ sys.path.insert(0, str(BACKEND_DIR))
 
 from core.document_loader import LoadedDocument, PageData
 from core.dependency_mapping import build_clause_relationships
+from core.legal_intelligence import extract_clause_evidence
 
 
-def make_document(text):
+def make_document(text, page_two="4. GENERAL\nThis agreement is governed by its written terms."):
     return LoadedDocument(
         file_path="<memory>", file_name="agreement.pdf", total_pages=2,
         pages=[
             PageData(page_num=1, text=text, char_count=len(text), image_count=0),
-            PageData(page_num=2, text="4. GENERAL\nThis agreement is governed by its written terms.", char_count=57, image_count=0),
+            PageData(page_num=2, text=page_two, char_count=len(page_two), image_count=0),
         ],
     )
 
@@ -37,64 +39,77 @@ def test_unresolved_reference_is_not_invented_as_a_node():
     assert not any(item["source_type"] == "explicit" for item in result["relationships"])
 
 
-def test_inferred_relationships_are_clearly_marked_as_candidates():
+def test_date_and_unclassified_preamble_are_not_graph_nodes_or_clauses():
+    result = build_clause_relationships(make_document(
+        "CLAUSEIQ TEST FIXTURE • FICTIONAL SAMPLE\n"
+        "13 October 2026\n"
+        "Background\nThe parties expect to discuss a possible integration.\n"
+        "1. CONFIDENTIAL INFORMATION\nConfidential Information means non-public information.\n"
+        "2. REMEDIES\nA party may seek relief for a breach."
+    ))
+    assert len(result["clauses"]) == 2
+    assert all(node["label"] != "13 October 2026" for node in result["graph"]["nodes"])
+    assert all(node["label"] != "Unclassified section" for node in result["graph"]["nodes"])
+
+
+def test_no_keyword_only_relationships_are_invented_without_model_review():
     result = build_clause_relationships(make_document(
         "1. PAYMENT\nThe customer shall pay each invoice within 30 days.\n"
         "2. LATE PAYMENT\nOverdue payment may accrue interest after a delay."
     ))
-    inferred = [item for item in result["relationships"] if item["source_type"] == "inferred"]
-    assert inferred
-    assert all(item["type"] == "related_to" for item in inferred)
-    assert all(item["confidence"] == "heuristic_candidate" for item in inferred)
-    assert all(item["evidence"] is None for item in inferred)
+    assert result["relationships"] == []
+    assert result["graph"]["edges"] == []
+    assert len(result["isolated_clauses"]) == 2
+    assert result["graph"]["nodes"] == []
 
 
-def test_graph_contains_clause_nodes_and_relationship_edges():
+def test_graph_only_contains_clauses_participating_in_verified_relationships():
     result = build_clause_relationships(make_document(
         "1. PAYMENT\nSubject to Clause 2, fees are due monthly.\n"
-        "2. LATE PAYMENT\nOverdue amounts accrue interest."
+        "2. LATE PAYMENT\nOverdue amounts accrue interest.\n"
+        "3. GOVERNING LAW\nThe laws of Meridian apply."
     ))
-    assert len(result["graph"]["nodes"]) >= 2
-    assert result["graph"]["edges"]
-    assert result["impact_analysis"]
+    assert len(result["graph"]["nodes"]) == 2
+    assert len(result["graph"]["edges"]) == 1
+    assert len(result["isolated_clauses"]) == 1
 
 
-def test_llm_relationship_requires_valid_ids_type_page_and_verbatim_evidence():
+def test_llm_relationship_requires_both_verbatim_quotes_and_correct_pages():
     document = make_document(
-        "1. PAYMENT\nThe customer shall pay each invoice within 30 days.\n"
-        "2. LATE PAYMENT\nOverdue payments may accrue interest after a delay."
+        "1. CONFIDENTIAL INFORMATION\nConfidential Information means non-public information disclosed by a party.\n"
+        "2. REMEDIES AND LIABILITY\nA party may seek injunctive relief for an actual or threatened breach of confidentiality."
     )
-    clauses = __import__("core.legal_intelligence", fromlist=["extract_clause_evidence"]).extract_clause_evidence(document)
-    source_id, target_id = clauses[0].clause_id, clauses[1].clause_id
-    import json
+    clauses = [c.to_dict() for c in extract_clause_evidence(document) if c.heading_detected]
     response = json.dumps([{
-        "source": source_id, "target": target_id, "type": "triggers",
-        "evidence": "The customer shall pay each invoice within 30 days.",
-        "page": 1, "explanation": "Payment performance may relate to the late-payment section."
+        "source": clauses[1]["clause_id"], "target": clauses[0]["clause_id"],
+        "type": "depends_on",
+        "source_evidence": "A party may seek injunctive relief for an actual or threatened breach of confidentiality.",
+        "target_evidence": "Confidential Information means non-public information disclosed by a party.",
+        "source_page": 1, "target_page": 1,
+        "explanation": "The remedies provision concerns breach of the defined confidential information obligation."
     }])
     result = build_clause_relationships(document, llm_invoke=lambda prompt: response)
-    model_links = [
-        item for item in result["relationships"]
-        if item["confidence"] == "model_candidate_not_calibrated"
-    ]
-    assert len(model_links) == 1
-    assert model_links[0]["type"] == "triggers"
-    assert model_links[0]["source_type"] == "inferred"
+    inferred = [r for r in result["relationships"] if r["source_type"] == "inferred"]
+    assert len(inferred) == 1
+    assert inferred[0]["source"] == clauses[1]["clause_id"]
+    assert inferred[0]["target"] == clauses[0]["clause_id"]
+    assert inferred[0]["source_evidence"] and inferred[0]["target_evidence"]
     assert result["methodology"]["llm_status"] == "completed"
 
 
-def test_llm_hallucinated_evidence_is_rejected():
+def test_llm_hallucinated_quote_from_either_clause_is_rejected():
     document = make_document(
         "1. PAYMENT\nThe customer shall pay within 30 days.\n"
         "2. LATE PAYMENT\nOverdue payments may accrue interest."
     )
-    clauses = __import__("core.legal_intelligence", fromlist=["extract_clause_evidence"]).extract_clause_evidence(document)
-    import json
+    clauses = [c.to_dict() for c in extract_clause_evidence(document) if c.heading_detected]
     response = json.dumps([{
-        "source": clauses[0].clause_id, "target": clauses[1].clause_id,
-        "type": "triggers", "evidence": "The customer must pay a $10,000 penalty.",
-        "page": 1, "explanation": "Invented quote."
+        "source": clauses[0]["clause_id"], "target": clauses[1]["clause_id"],
+        "type": "triggers",
+        "source_evidence": "The customer shall pay a $10,000 penalty.",
+        "target_evidence": "Overdue payments may accrue interest.",
+        "source_page": 1, "target_page": 1,
+        "explanation": "Invented source evidence."
     }])
     result = build_clause_relationships(document, llm_invoke=lambda prompt: response)
-    assert not any(item["confidence"] == "model_candidate_not_calibrated"
-                   for item in result["relationships"])
+    assert not any(r["source_type"] == "inferred" for r in result["relationships"])
