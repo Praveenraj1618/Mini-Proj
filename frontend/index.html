@@ -302,6 +302,11 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                         </div>
                         <p class="section-note">Explicit links are resolved from wording in the contract. Inferred links are keyword-based candidates only; they do not establish legal dependency or automatic consequences.</p>
                         <div id="dependencies-summary" class="summary-grid" aria-live="polite"></div>
+                        <div class="heatmap-item">
+                            <strong>Clause dependency graph</strong>
+                            <p class="section-note">Arrows show the direction of a textual reference. Dashed links are inferred review candidates.</p>
+                            <div id="dependency-graph" style="width:100%;overflow-x:auto;" role="region" aria-label="Clause dependency graph"><p>Graph will appear after analysis.</p></div>
+                        </div>
                         <div id="dependencies-container" class="heatmap-list">
                             <p>Upload a contract, then open Clause map.</p>
                         </div>
@@ -418,7 +423,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
             documentEpoch += 1;
             pendingRequests.forEach(controller => controller.abort());
             pendingRequests.clear();
-            ['heatmap-container','summary-container','qa-output','negotiate-output','obligations-container','dependencies-container','dependencies-summary','dependencies-limits','compare-container','visuals-container','visual-analysis-output'].forEach(id => {
+            ['heatmap-container','summary-container','qa-output','negotiate-output','obligations-container','dependencies-container','dependencies-summary','dependency-graph','dependencies-limits','compare-container','visuals-container','visual-analysis-output'].forEach(id => {
                 document.getElementById(id).textContent = uiText('Preferences changed. Choose an analysis to continue.');
             });
             document.getElementById('analyze-visuals-button').disabled = false;
@@ -857,6 +862,30 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                     <div class="stat-box"><div class="stat-label">Detected sections</div><div class="stat-val">${data.clauses.length}</div></div>
                     <div class="stat-box"><div class="stat-label">Explicit references</div><div class="stat-val">${explicit.length}</div></div>
                     <div class="stat-box"><div class="stat-label">Inferred review leads</div><div class="stat-val">${inferred.length}</div></div>`;
+                const graphBox = document.getElementById('dependency-graph');
+                const graphNodes = data.graph.nodes;
+                const graphWidth = 840, nodeWidth = 230, nodeHeight = 76, colGap = 45, rowGap = 42;
+                const rows = Math.max(1, Math.ceil(graphNodes.length / 3));
+                const graphHeight = rows * (nodeHeight + rowGap) + 24;
+                const positions = new Map(graphNodes.map((node, index) => [node.id, {
+                    x: 16 + (index % 3) * (nodeWidth + colGap),
+                    y: 12 + Math.floor(index / 3) * (nodeHeight + rowGap)
+                }]));
+                const edgeMarkup = data.graph.edges.map(edge => {
+                    const from = positions.get(edge.source), to = positions.get(edge.target);
+                    if (!from || !to) return '';
+                    const x1 = from.x + nodeWidth / 2, y1 = from.y + nodeHeight / 2;
+                    const x2 = to.x + nodeWidth / 2, y2 = to.y + nodeHeight / 2;
+                    const inferredEdge = edge.source_type === 'inferred';
+                    return `<path d="M ${x1} ${y1} Q ${(x1+x2)/2} ${Math.min(y1,y2)-24} ${x2} ${y2}" fill="none" stroke="${inferredEdge ? '#b8862b' : '#16794b'}" stroke-width="2" ${inferredEdge ? 'stroke-dasharray="6 5"' : ''} marker-end="url(#dependency-arrow)"><title>${escapeHtml(edge.label)} · ${inferredEdge ? 'inferred candidate' : 'explicit reference'}</title></path>`;
+                }).join('');
+                const nodeMarkup = graphNodes.map(node => {
+                    const pos = positions.get(node.id);
+                    return `<g><rect x="${pos.x}" y="${pos.y}" width="${nodeWidth}" height="${nodeHeight}" rx="10" fill="#fff" stroke="#c9b477" stroke-width="1.5"/><text x="${pos.x+12}" y="${pos.y+29}" fill="#17243b" font-size="13" font-weight="700">${escapeHtml(node.label.slice(0,30))}${node.label.length>30?'…':''}</text><text x="${pos.x+12}" y="${pos.y+52}" fill="#687386" font-size="11">Page(s): ${escapeHtml((node.pages||[]).join(', '))}</text></g>`;
+                }).join('');
+                graphBox.innerHTML = graphNodes.length
+                    ? `<svg viewBox="0 0 ${graphWidth} ${graphHeight}" width="100%" style="min-width:680px;max-width:100%;height:auto" role="img" aria-label="Clause relationship diagram"><defs><marker id="dependency-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#687386"/></marker></defs>${edgeMarkup}${nodeMarkup}</svg><div class="section-note">Solid green: explicit reference · Dashed gold: inferred candidate</div>`
+                    : '<p>No clause sections were detected for the graph.</p>';
                 container.replaceChildren();
                 const clauseById = new Map(data.clauses.map(clause => [clause.clause_id, clause]));
                 const section = document.createElement('div');
