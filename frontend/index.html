@@ -262,6 +262,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                 <div class="tab-bar" role="tablist" aria-label="Document analysis tools">
                     <button type="button" class="tab-btn active" role="tab" aria-selected="true" aria-controls="heatmap-tab" data-tab="heatmap-tab" onclick="switchTab('heatmap-tab', this)">Risk review</button>
                     <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="summary-tab" data-tab="summary-tab" onclick="switchTab('summary-tab', this)">Summary</button>
+                    <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="simplify-tab" data-tab="simplify-tab" onclick="switchTab('simplify-tab', this); loadClauses()">Simplify & clarify</button>
                     <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="qa-tab" data-tab="qa-tab" onclick="switchTab('qa-tab', this)">Ask AI</button>
                     <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="negotiate-tab" data-tab="negotiate-tab" onclick="switchTab('negotiate-tab', this)">Negotiation</button>
                     <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="obligations-tab" data-tab="obligations-tab" onclick="switchTab('obligations-tab', this)">Obligations</button>
@@ -290,6 +291,24 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                         <div id="summary-container">
                             <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">Upload a PDF, then click Executive Summary.</div>
                         </div>
+                    </div>
+                </div>
+
+                <div id="simplify-tab" class="tab-content hidden">
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <span class="card-title">Clause simplification & ambiguity review</span>
+                            <span class="section-note">Evidence-linked explanations</span>
+                        </div>
+                        <p class="section-note">Select an extracted clause to get a plain-language explanation, ambiguity checks, missing information, clarification questions, and uncertainty labels. Always verify legal conclusions against the original contract.</p>
+                        <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:1rem 0;">
+                            <button class="btn-secondary" type="button" onclick="loadClauses()">Refresh clauses</button>
+                            <span id="clause-count" class="section-note">Upload a contract to begin.</span>
+                        </div>
+                        <div id="clause-list" class="heatmap-list" aria-live="polite">
+                            <div class="section-note">Upload a PDF, then select a clause.</div>
+                        </div>
+                        <div id="simplification-output" style="margin-top:1rem;" aria-live="polite"></div>
                     </div>
                 </div>
 
@@ -422,11 +441,13 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
         function resetDocumentViews() {
             documentEpoch += 1;
             documentId = null;
+            extractedClauses = [];
+            document.getElementById('clause-count').textContent = 'Upload a contract to begin.';
             detectedCategory = "unknown";
             document.getElementById("review-scope").textContent = "";
             pendingRequests.forEach(controller => controller.abort());
             pendingRequests.clear();
-            ['heatmap-container', 'summary-container', 'qa-output', 'negotiate-output',
+            ['heatmap-container', 'summary-container', 'qa-output', 'negotiate-output', 'clause-list', 'simplification-output',
              'obligations-container', 'compare-container', 'visuals-container', 'visual-analysis-output']
                 .forEach(id => { document.getElementById(id).textContent = 'Upload a contract to begin.'; });
             ['qa-input', 'clause-input', 'compare-file-2'].forEach(id => { document.getElementById(id).value = ''; });
@@ -706,6 +727,84 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
             } catch (error) {
                 if (error.name === 'AbortError') return;
                 container.innerHTML = `<div style="color:var(--accent-red);">${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        let extractedClauses = [];
+        function renderClauseList() {
+            const list = document.getElementById('clause-list');
+            document.getElementById('clause-count').textContent = `${extractedClauses.length} sections extracted`;
+            if (!extractedClauses.length) {
+                list.innerHTML = '<div class="section-note">No readable clause sections were found in this document.</div>';
+                return;
+            }
+            list.innerHTML = extractedClauses.map((clause, index) => `
+                <article class="heatmap-item">
+                    <div class="heatmap-top">
+                        <strong class="heatmap-cat">${escapeHtml(clause.title || 'Untitled section')}</strong>
+                        <span class="section-note">Pages ${escapeHtml((clause.pages || []).join(', ') || '—')}</span>
+                    </div>
+                    <div class="source-text" style="font-size:.82rem;color:var(--text-secondary);white-space:pre-wrap;">${escapeHtml((clause.text || '').slice(0, 650))}${(clause.text || '').length > 650 ? '…' : ''}</div>
+                    <button class="btn-secondary" type="button" style="margin-top:.75rem;" onclick="simplifyClause('${escapeHtml(clause.clause_id)}')">Simplify & review this section</button>
+                </article>
+            `).join('');
+        }
+
+        async function loadClauses() {
+            if (!requireDocument()) return;
+            const list = document.getElementById('clause-list');
+            list.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Extracting contract sections…</div>';
+            try {
+                const response = await scopedFetch(`${API_HOST}/api/clauses`, {credentials:'include'});
+                const data = await readApiResponse(response);
+                extractedClauses = Array.isArray(data.clauses) ? data.clauses : [];
+                renderClauseList();
+            } catch (error) {
+                if (error.name === 'AbortError') return;
+                list.innerHTML = `<div class="diagnostic">${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        function renderAnalysisItems(items, fields) {
+            if (!Array.isArray(items) || !items.length) return '<p class="section-note">No supported findings returned.</p>';
+            return '<ul>' + items.map(item => {
+                if (typeof item === 'string') return `<li>${escapeHtml(item)}</li>`;
+                const body = fields.map(field => item[field] ? `<div><strong>${escapeHtml(field.replaceAll('_',' '))}:</strong> ${escapeHtml(item[field])}</div>` : '').join('');
+                const citations = Array.isArray(item.citations) ? item.citations.join(', ') : '';
+                return `<li style="margin:.55rem 0;">${body}${citations ? `<div class="section-note">Evidence: ${escapeHtml(citations)}</div>` : ''}</li>`;
+            }).join('') + '</ul>';
+        }
+
+        async function simplifyClause(clauseId) {
+            if (!requireDocument()) return;
+            const output = document.getElementById('simplification-output');
+            output.innerHTML = '<div style="text-align:center;"><span class="spinner"></span> Reviewing clause evidence…</div>';
+            try {
+                const response = await scopedFetch(`${API_HOST}/api/simplify`, {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({clause_id:clauseId}), credentials:'include'
+                });
+                const data = await readApiResponse(response);
+                const uncertainty = data.uncertainty || {};
+                output.innerHTML = `
+                    <section class="evidence-card">
+                        <div class="evidence-head"><span>${escapeHtml(data.title || 'Selected clause')}</span><span>${escapeHtml(data.status || '')}</span></div>
+                        <div class="section-note">Source pages: ${escapeHtml((data.citations || []).join(', '))}</div>
+                        <h3>Original clause</h3><div class="summary-text">${escapeHtml(data.source_text || '')}</div>
+                        <h3>Plain-language explanation</h3><div class="summary-text">${escapeHtml(data.simplified_explanation || data.error || 'No explanation returned.')}</div>
+                        <h3>Ambiguities & vague wording</h3>${renderAnalysisItems(data.ambiguities, ['issue','why_it_matters'])}
+                        <h3>Missing information</h3>${renderAnalysisItems(data.missing_information, ['item','reason'])}
+                        <h3>Questions to clarify</h3>${renderAnalysisItems(data.clarification_questions, [])}
+                        <h3>What is certain vs uncertain</h3>
+                        <h4>Expressly stated</h4>${renderAnalysisItems(uncertainty.explicit_terms, ['statement'])}
+                        <h4>Assumptions</h4>${renderAnalysisItems(uncertainty.assumptions, ['statement'])}
+                        <h4>Possible interpretations</h4>${renderAnalysisItems(uncertainty.possible_interpretations, ['statement'])}
+                        ${data.diagnostic ? diagnosticHtml(data.diagnostic) : ''}
+                        <p class="section-note">AI-generated assistance, not legal advice. Confirm every finding against the cited contract pages.</p>
+                    </section>`;
+            } catch (error) {
+                if (error.name === 'AbortError') return;
+                output.innerHTML = `<div class="diagnostic">${escapeHtml(error.message)}</div>`;
             }
         }
 
