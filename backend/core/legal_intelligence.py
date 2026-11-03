@@ -64,7 +64,7 @@ class ClauseEvidence:
 
 
 def _is_metadata_heading(line: str) -> bool:
-    normalized = re.sub(r"\\s+", " ", line.strip()).strip(" :.-–—").upper()
+    normalized = re.sub(r"\s+", " ", line.strip()).strip(" :.-–—").upper()
     return normalized in _METADATA_HEADINGS
 
 
