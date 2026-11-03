@@ -17,9 +17,12 @@ The architecture is fully **decoupled**: the Python Backend (`backend/app_api.py
 | `POST` | `/api/negotiate` | Risk Analysis & Safer Clause Generator | `{"clause": "text..."}` | `{"risk_level": "...", "safer_alternative": "..."}` |
 | `POST` | `/api/qa` | Grounded Q&A with Citation Cards | `{"question": "query..."}` | `{"answer": "...", "sources": [...]}` |
 | `GET` | `/api/obligations` | Structured Duties & Deadlines | None | `[{"party": "...", "obligation": "...", "deadline_frequency": "..."}]` |
+| `GET` | `/api/dependencies` | Page-grounded clause sections, explicit cross-references, inferred review candidates, graph nodes/edges and connected-clause paths | None | `{"clauses": [...], "relationships": [...], "graph": {"nodes": [...], "edges": [...]}, "impact_analysis": [...]}` |
 | `POST` | `/api/compare` | Compare an uploaded second version with the session's first contract | `multipart/form-data` (`file`) | `{"comparison_table": [...]}` |
 
 Uploaded documents are isolated by an HTTP-only session cookie. Browser clients hosted on an allowed separate origin must send requests with `credentials: 'include'`. Configure additional development origins with `CORS_ALLOWED_ORIGINS`. The default maximum PDF size is 20 MB and can be changed with `MAX_UPLOAD_MB`.
+
+`GET /api/dependencies` uses deterministic heading/reference rules and does not require an LLM. Explicit references are distinguished from inferred keyword-based candidates; inferred links are not proof of legal dependency. See [clause relationship mapping](../docs/clause_relationship_mapping.md) for schema and limitations.
 
 When no LLM is configured (or `LEGAL_AI_OFFLINE=true`), the server does not invent legal conclusions: it returns cited deterministic extractions and marks risk/negotiation judgments as not assessed.
 
