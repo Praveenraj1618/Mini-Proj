@@ -187,3 +187,64 @@ def test_clause_simplification_reports_unknown_clause_id():
     result = reviewer.simplify_clause("not-a-real-clause")
 
     assert result["status"] == "not_found"
+
+
+def test_recognizes_common_standalone_contract_headings():
+    document = make_document([
+        (1, "MUTUAL NON-DISCLOSURE AGREEMENT\\nPARTIES\\nParty A and Party B enter this agreement.\\nEFFECTIVE DATE\\nThis agreement starts on 1 January 2026.\\nRECITALS\\nThe parties wish to exchange information."),
+    ])
+    clauses = extract_clause_evidence(document)
+    titles = [clause.title for clause in clauses]
+    assert titles == ["Unclassified section", "PARTIES", "EFFECTIVE DATE", "RECITALS"]
+    assert all(clause.heading_detected for clause in clauses[1:])
+
+
+def test_recognizes_uppercase_headings_across_contract_styles():
+    samples = [
+        ("NON-DISCLOSURE AGREEMENT", "CONFIDENTIALITY", "Each party protects information."),
+        ("MASTER SERVICES AGREEMENT", "PAYMENT TERMS", "Invoices are due within 30 days."),
+        ("EMPLOYMENT AGREEMENT", "TERMINATION", "Either party may terminate on notice."),
+        ("LEASE AGREEMENT", "REPAIRS AND MAINTENANCE", "Tenant must keep the premises clean."),
+    ]
+    for filename, heading, body in samples:
+        clauses = extract_clause_evidence(
+            make_document([(1, f"{filename}\\n{heading}\\n{body}")], name=filename + ".pdf")
+        )
+        assert len(clauses) == 2
+        assert clauses[1].title == heading
+        assert body in clauses[1].text
+
+
+def test_simplification_rejects_findings_without_valid_citations(monkeypatch):
+    document = make_document([(1, "6. LIABILITY\\nNeither party is liable for indirect loss.")])
+    reviewer = LegalReviewer(document, None)
+    monkeypatch.setattr(reviewer_module, "check_api_key_configured", lambda: True)
+    response = {
+        "simplified_explanation": "Indirect losses are excluded. [Page 1]",
+        "ambiguities": [{
+            "issue": "indirect loss",
+            "why_it_matters": "The term may be interpreted differently.",
+            "citations": ["[Page 99]"],
+        }],
+        "missing_information": [],
+        "clarification_questions": [],
+        "uncertainty": {"explicit_terms": [], "assumptions": [], "possible_interpretations": []},
+    }
+    monkeypatch.setattr(reviewer, "_invoke_llm", lambda *args, **kwargs: json.dumps(response))
+    result = reviewer.simplify_clause(extract_clause_evidence(document)[0].clause_id)
+    assert result["status"] == "analysis_failed"
+
+
+def test_simplification_handles_provider_failure_without_crashing(monkeypatch):
+    document = make_document([(1, "1. PAYMENT\\nPayment is due within 30 days.")])
+    reviewer = LegalReviewer(document, None)
+    monkeypatch.setattr(reviewer_module, "check_api_key_configured", lambda: True)
+
+    def fail_provider(*args, **kwargs):
+        raise TimeoutError("simulated provider timeout")
+
+    monkeypatch.setattr(reviewer, "_invoke_llm", fail_provider)
+    result = reviewer.simplify_clause(extract_clause_evidence(document)[0].clause_id)
+    assert result["status"] == "analysis_failed"
+    assert result["diagnostic"]
+    assert result["source_text"].startswith("1. PAYMENT")
