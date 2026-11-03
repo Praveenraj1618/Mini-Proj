@@ -22,7 +22,7 @@ Retrieval locates evidence; the generative LLM writes the answer. Retrieval scor
 | 2,500-character comparison cutoff | Deterministic sentence/paragraph differences span all readable contract pages. Long changes are segmented without dropping text. Every change is retained; small batches are sent for AI impact assessment. Original text and page references cannot be replaced by model output. |
 | Fake moderate change on failure | Identical documents bypass the LLM and return `no_changes`. Actual differences remain `REVIEW REQUIRED` on failure, with `analysis_failed` or `partial_analysis`. Counts represent text changes, not legal-clause counts. |
 | Fixed 85% confidence | Heuristic and LLM classification return `confidence: null`, a method/source, and a calibration note. UI displays the method. |
-| Vector isolation | Every store receives a random collection name and explicit chunk IDs. Rebuild replaces its own collection; session replacement/eviction deletes old collections. Temporary comparison collections are closed after use. |
+| Vector isolation | Every store receives a random collection name and explicit chunk IDs. Rebuild replaces its own collection; session replacement/eviction deletes old collections. |
 | Stale dashboard | New uploads clear all derived panels, abort old requests, and advance a document generation. Per-endpoint request tokens prevent older questions overwriting newer answers. `X-Document-Id` rejects requests for replaced documents. Per-session locking prevents cleanup during active analysis. |
 | Ignored configuration | Chunking defaults and API calls use configured sizes. Hybrid retrieval uses configured candidate counts, RRF constant and reranking switch. Hybrid can be disabled; QA honors configured top-k. Active settings appear in `/api/status`. |
 | Visual/OCR support not exposed | Scanned or image-dominated pages use local OCR when enabled. Visual pages are rendered as PNG previews, including vector marks. The UI exposes previews and an explicit AI-analysis action with dedicated vision-model configuration. |
@@ -100,7 +100,7 @@ python -m pytest backend/tests -q
 node --test frontend/tests/state.test.cjs
 ```
 
-Backend regressions exercise full-document summary windows, later-page changes, identical-input comparison, outage/malformed-output handling, more than 50 changes, classification labeling, live configuration, actual Chroma collection isolation, scanned-PDF OCR, and HTTP session isolation/visual routes. Chroma tests use deterministic local embeddings to test the real database without downloading neural models. OCR integration tests require installed Tesseract language data and report a skip when it is unavailable. LLM calls use controlled responses/failures; passing tests do not measure hosted model quality.
+Backend regressions exercise full-document summary windows, outage/malformed-output handling, classification labeling, live configuration, actual Chroma collection isolation, scanned-PDF OCR, and HTTP session isolation/visual routes. Chroma tests use deterministic local embeddings to test the real database without downloading neural models. OCR integration tests require installed Tesseract language data and report a skip when it is unavailable. LLM calls use controlled responses/failures; passing tests do not measure hosted model quality.
 
 Frontend tests execute the actual inline JavaScript with a small DOM harness, checking panel clearing, document IDs, and stale success/failure/JSON-decoding responses. They are not a substitute for a visual browser check.
 
