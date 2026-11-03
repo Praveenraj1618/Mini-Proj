@@ -14,10 +14,14 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+      - name: Install OCR system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y tesseract-ocr tesseract-ocr-eng
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
