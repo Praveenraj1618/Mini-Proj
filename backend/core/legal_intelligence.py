@@ -145,8 +145,20 @@ def extract_clause_evidence(document, context_chars: int = 400) -> List[ClauseEv
             # forming independent operative clauses. Keep their source text,
             # but group adjacent fields into one compact metadata section.
             if _is_metadata_heading(line):
-                if current is None or not current.get("is_metadata"):
+                if current is None:
                     start_section("Document information", page.page_num, False, line)
+                elif not current.get("is_metadata"):
+                    # If the document opens with a title/preamble before its
+                    # parties/date block, keep that material in the same card.
+                    if len(sections) == 1 and current["title"] == "Unclassified section":
+                        current["title"] = "Document information"
+                        current["is_metadata"] = True
+                        current["text_parts"].append(line)
+                        current["page_end"] = page.page_num
+                        if page.page_num not in current["pages"]:
+                            current["pages"].append(page.page_num)
+                    else:
+                        start_section("Document information", page.page_num, False, line)
                 elif line:
                     current["text_parts"].append(line)
                     current["page_end"] = page.page_num
