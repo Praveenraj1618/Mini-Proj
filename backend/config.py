@@ -49,7 +49,7 @@ def configured_llm_providers(vision: bool = False) -> List[str]:
         available[name] = bool(key) and not key.lower().startswith("your_")
     requested_order = [
         item.strip().lower()
-        for item in os.getenv("LLM_PROVIDER_ORDER", "xai,openai,groq,gemini").split(",")
+        for item in os.getenv("LLM_PROVIDER_ORDER", "gemini,xai,openai,groq").split(",")
         if item.strip()
     ]
     return [
