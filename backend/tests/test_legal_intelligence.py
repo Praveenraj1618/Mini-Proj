@@ -248,3 +248,78 @@ def test_simplification_handles_provider_failure_without_crashing(monkeypatch):
     assert result["status"] == "analysis_failed"
     assert result["diagnostic"]
     assert result["source_text"].startswith("1. PAYMENT")
+
+
+
+def test_llm_retries_transient_gemini_503_then_succeeds(monkeypatch):
+    from types import SimpleNamespace
+
+    class TemporaryUnavailable(Exception):
+        status_code = 503
+
+    class FlakyClient:
+        def __init__(self):
+            self.calls = 0
+
+        def bind(self, **kwargs):
+            return self
+
+        def invoke(self, messages):
+            self.calls += 1
+            if self.calls == 1:
+                raise TemporaryUnavailable("temporary upstream outage")
+            return SimpleNamespace(content="OK")
+
+    reviewer = LegalReviewer(make_document([(1, "1. PAYMENT\\nPayment is due.")]), None)
+    gemini = FlakyClient()
+    monkeypatch.setattr(reviewer, "_candidate_clients", lambda vision=False: [("Gemini", gemini)])
+    monkeypatch.setattr(reviewer_module.time, "sleep", lambda seconds: None)
+
+    assert reviewer._invoke_llm([]) == "OK"
+    assert gemini.calls == 2
+    assert reviewer.last_llm_diagnostic == "Provider Gemini succeeded."
+
+
+def test_llm_falls_back_after_three_transient_gemini_503_failures(monkeypatch):
+    from types import SimpleNamespace
+
+    class TemporaryUnavailable(Exception):
+        status_code = 503
+
+    class AlwaysUnavailableClient:
+        def __init__(self):
+            self.calls = 0
+
+        def bind(self, **kwargs):
+            return self
+
+        def invoke(self, messages):
+            self.calls += 1
+            raise TemporaryUnavailable("temporary upstream outage")
+
+    class HealthyClient:
+        def __init__(self):
+            self.calls = 0
+
+        def bind(self, **kwargs):
+            return self
+
+        def invoke(self, messages):
+            self.calls += 1
+            return SimpleNamespace(content="OK from fallback")
+
+    reviewer = LegalReviewer(make_document([(1, "1. PAYMENT\\nPayment is due.")]), None)
+    gemini = AlwaysUnavailableClient()
+    groq = HealthyClient()
+    monkeypatch.setattr(
+        reviewer, "_candidate_clients",
+        lambda vision=False: [("Gemini", gemini), ("Groq", groq)]
+    )
+    monkeypatch.setattr(reviewer_module.time, "sleep", lambda seconds: None)
+
+    assert reviewer._invoke_llm([]) == "OK from fallback"
+    assert gemini.calls == 3
+    assert groq.calls == 1
+    assert reviewer.last_llm_diagnostic == (
+        "Fallback provider Groq succeeded after Gemini (TemporaryUnavailable)."
+    )
