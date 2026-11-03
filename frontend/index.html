@@ -851,92 +851,93 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
             const container = document.getElementById('dependencies-container');
             const summary = document.getElementById('dependencies-summary');
             const limits = document.getElementById('dependencies-limits');
-            container.textContent = 'Mapping clause references...';
+            const graphBox = document.getElementById('dependency-graph');
+            container.textContent = 'Reviewing clause relationships...';
             summary.replaceChildren();
+            graphBox.textContent = '';
             limits.textContent = '';
             try {
                 const data = await readApiResponse(await scopedFetch(`${API_HOST}/api/dependencies`, {credentials:'include'}));
                 const explicit = data.relationships.filter(item => item.source_type === 'explicit');
                 const inferred = data.relationships.filter(item => item.source_type === 'inferred');
-                summary.innerHTML = `
-                    <div class="stat-box"><div class="stat-label">Detected sections</div><div class="stat-val">${data.clauses.length}</div></div>
-                    <div class="stat-box"><div class="stat-label">Explicit references</div><div class="stat-val">${explicit.length}</div></div>
-                    <div class="stat-box"><div class="stat-label">Inferred review leads</div><div class="stat-val">${inferred.length}</div></div>`;
-                const graphBox = document.getElementById('dependency-graph');
-                const graphNodes = data.graph.nodes;
-                const graphWidth = 840, nodeWidth = 230, nodeHeight = 76, colGap = 45, rowGap = 42;
-                const rows = Math.max(1, Math.ceil(graphNodes.length / 3));
-                const graphHeight = rows * (nodeHeight + rowGap) + 24;
-                const positions = new Map(graphNodes.map((node, index) => [node.id, {
-                    x: 16 + (index % 3) * (nodeWidth + colGap),
-                    y: 12 + Math.floor(index / 3) * (nodeHeight + rowGap)
-                }]));
-                const edgeMarkup = data.graph.edges.map(edge => {
-                    const from = positions.get(edge.source), to = positions.get(edge.target);
-                    if (!from || !to) return '';
-                    let x1, y1, x2, y2;
-                    if (Math.abs(to.x - from.x) >= Math.abs(to.y - from.y)) {
-                        const forward = to.x >= from.x;
-                        x1 = from.x + (forward ? nodeWidth : 0); y1 = from.y + nodeHeight / 2;
-                        x2 = to.x + (forward ? 0 : nodeWidth); y2 = to.y + nodeHeight / 2;
-                    } else {
-                        const downward = to.y >= from.y;
-                        x1 = from.x + nodeWidth / 2; y1 = from.y + (downward ? nodeHeight : 0);
-                        x2 = to.x + nodeWidth / 2; y2 = to.y + (downward ? 0 : nodeHeight);
-                    }
-                    const inferredEdge = edge.source_type === 'inferred';
-                    return `<path d="M ${x1} ${y1} Q ${(x1+x2)/2} ${Math.min(y1,y2)-24} ${x2} ${y2}" fill="none" stroke="${inferredEdge ? '#b8862b' : '#16794b'}" stroke-width="2" ${inferredEdge ? 'stroke-dasharray="6 5"' : ''} marker-end="url(#dependency-arrow)"><title>${escapeHtml(edge.label)} · ${inferredEdge ? 'inferred candidate' : 'explicit reference'}</title></path>`;
-                }).join('');
-                const nodeMarkup = graphNodes.map(node => {
-                    const pos = positions.get(node.id);
-                    return `<g><rect x="${pos.x}" y="${pos.y}" width="${nodeWidth}" height="${nodeHeight}" rx="10" fill="#fff" stroke="#c9b477" stroke-width="1.5"/><text x="${pos.x+12}" y="${pos.y+29}" fill="#17243b" font-size="13" font-weight="700">${escapeHtml(node.label.slice(0,30))}${node.label.length>30?'…':''}</text><text x="${pos.x+12}" y="${pos.y+52}" fill="#687386" font-size="11">Page(s): ${escapeHtml((node.pages||[]).join(', '))}</text></g>`;
-                }).join('');
-                graphBox.innerHTML = graphNodes.length
-                    ? `<svg viewBox="0 0 ${graphWidth} ${graphHeight}" width="100%" style="min-width:680px;max-width:100%;height:auto" role="img" aria-label="Clause relationship diagram"><defs><marker id="dependency-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#687386"/></marker></defs>${edgeMarkup}${nodeMarkup}</svg><div class="section-note">Solid green: explicit reference · Dashed gold: inferred candidate</div>`
-                    : '<p>No clause sections were detected for the graph.</p>';
-                container.replaceChildren();
+                const stats = [
+                    ['Contract clauses', data.clauses.length],
+                    ['Explicit references', explicit.length],
+                    ['Evidence-backed candidates', inferred.length]
+                ];
+                summary.innerHTML = stats.map(([label, value]) =>
+                    `<div class="stat-box"><div class="stat-label">${escapeHtml(label)}</div><div class="stat-val">${escapeHtml(value)}</div></div>`
+                ).join('');
+
                 const clauseById = new Map(data.clauses.map(clause => [clause.clause_id, clause]));
-                const section = document.createElement('div');
-                section.className = 'heatmap-item';
-                section.innerHTML = '<strong>Detected clauses</strong>';
+                if (!data.relationships.length) {
+                    graphBox.innerHTML = '<div class="evidence-card"><strong>No supported clause relationships found.</strong><p>The system will not draw connections just because clauses share keywords. All detected clauses remain available in the inventory below.</p></div>';
+                } else {
+                    const rows = data.relationships.map(relation => {
+                        const source = clauseById.get(relation.source);
+                        const target = clauseById.get(relation.target);
+                        if (!source || !target) return '';
+                        const inferredLink = relation.source_type === 'inferred';
+                        const edgeColor = inferredLink ? '#a66a12' : '#16794b';
+                        const sourceQuote = relation.source_evidence || relation.evidence || '';
+                        const targetQuote = relation.target_evidence || '';
+                        return `
+                            <div class="dependency-edge-row" style="display:grid;grid-template-columns:minmax(180px,1fr) minmax(130px,0.65fr) minmax(180px,1fr);gap:12px;align-items:center;padding:14px;border:1px solid var(--border-color,#dce1e8);border-radius:12px;background:var(--surface,#fff);margin-bottom:12px;">
+                                <div style="min-width:0;padding:12px;border:1px solid #c9b477;border-radius:9px;">
+                                    <strong>${escapeHtml(source.title)}</strong>
+                                    <div class="section-note">Source · Page(s) ${escapeHtml((source.pages || []).join(', '))}</div>
+                                </div>
+                                <div style="text-align:center;min-width:0;">
+                                    <div style="color:${edgeColor};font-weight:700;overflow-wrap:anywhere;">${escapeHtml(relation.type.replaceAll('_',' '))}</div>
+                                    <div style="font-size:1.4rem;color:${edgeColor};line-height:1.5;">→</div>
+                                    <span class="section-note">${inferredLink ? 'Inferred · verify' : 'Explicit reference'}</span>
+                                </div>
+                                <div style="min-width:0;padding:12px;border:1px solid #c9b477;border-radius:9px;">
+                                    <strong>${escapeHtml(target.title)}</strong>
+                                    <div class="section-note">Target · Page(s) ${escapeHtml((target.pages || []).join(', '))}</div>
+                                </div>
+                                <div style="grid-column:1/-1;padding-top:8px;border-top:1px solid var(--border-color,#e5e7eb);">
+                                    <p style="margin:4px 0 8px;">${escapeHtml(relation.explanation || 'Review this relationship against the original contract.')}</p>
+                                    ${sourceQuote ? `<blockquote><strong>Source evidence · Page(s) ${escapeHtml((relation.pages || []).join(', '))}</strong><br>${escapeHtml(sourceQuote)}</blockquote>` : ''}
+                                    ${targetQuote ? `<blockquote><strong>Target evidence · Page(s) ${escapeHtml((relation.target_pages || []).join(', '))}</strong><br>${escapeHtml(targetQuote)}</blockquote>` : ''}
+                                    <div class="section-note">Evidence status: ${escapeHtml(relation.confidence)}</div>
+                                </div>
+                            </div>`;
+                    }).join('');
+                    graphBox.innerHTML = `
+                        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;" class="section-note">
+                            <span>━━ Green: explicit contract reference</span>
+                            <span>━━ Gold: inferred candidate supported by both clauses</span>
+                        </div>
+                        <div aria-label="Directed clause relationship map">${rows}</div>
+                        <p class="section-note">Arrows point from the source clause to the clause it refers to, defines, qualifies, or otherwise interacts with. The relationship label and evidence explain the direction.</p>`;
+                }
+
+                container.replaceChildren();
+                const inventory = document.createElement('div');
+                inventory.className = 'heatmap-item';
+                inventory.innerHTML = '<strong>Clause inventory</strong><p class="section-note">All recognized clauses are listed here, including clauses that have no supported relationship.</p>';
                 data.clauses.forEach(clause => {
                     const item = document.createElement('div');
                     item.className = 'evidence-card';
                     item.innerHTML = `<div class="evidence-head"><span>${escapeHtml(clause.title)}</span><span>Pages ${escapeHtml((clause.pages || []).join(', '))}</span></div><div class="source-text">${escapeHtml(clause.text.slice(0, 500))}${clause.text.length > 500 ? '…' : ''}</div>`;
-                    section.appendChild(item);
+                    inventory.appendChild(item);
                 });
-                container.appendChild(section);
-                const links = document.createElement('div');
-                links.className = 'heatmap-item';
-                links.innerHTML = '<strong>Relationships</strong>';
-                if (!data.relationships.length) {
-                    const empty = document.createElement('p');
-                    empty.textContent = 'No cross-clause relationships were confidently identified by the current conservative rules.';
-                    links.appendChild(empty);
+                container.appendChild(inventory);
+
+                const isolated = data.isolated_clauses || [];
+                if (isolated.length) {
+                    const isolatedSection = document.createElement('div');
+                    isolatedSection.className = 'heatmap-item';
+                    isolatedSection.innerHTML = `<strong>Unlinked clauses (${isolated.length})</strong><p class="section-note">No sufficiently supported relationship was found for these clauses. They are intentionally not connected to unrelated nodes.</p>`;
+                    isolated.forEach(clause => {
+                        const p = document.createElement('p');
+                        p.textContent = `${clause.title} · Page(s) ${(clause.pages || []).join(', ')}`;
+                        isolatedSection.appendChild(p);
+                    });
+                    container.appendChild(isolatedSection);
                 }
-                data.relationships.forEach(relation => {
-                    const source = clauseById.get(relation.source);
-                    const target = clauseById.get(relation.target);
-                    const item = document.createElement('div');
-                    item.className = 'evidence-card';
-                    const provenance = relation.source_type === 'explicit' ? 'Explicit contract reference' : 'Inferred candidate — verify';
-                    item.innerHTML = `<div class="evidence-head"><span>${escapeHtml(source?.title || relation.source)} → ${escapeHtml(target?.title || relation.target)}</span><span>${escapeHtml(relation.type)}</span></div><div><strong>${escapeHtml(provenance)}</strong> · ${escapeHtml(relation.confidence)}</div><p>${escapeHtml(relation.explanation)}</p>${relation.evidence ? `<blockquote>${escapeHtml(relation.evidence)}</blockquote>` : ''}<div class="section-note">Source pages: ${escapeHtml((relation.pages || []).join(', '))} · Target pages: ${escapeHtml((relation.target_pages || []).join(', '))}</div>`;
-                    links.appendChild(item);
-                });
-                container.appendChild(links);
-                const impacts = document.createElement('div');
-                impacts.className = 'heatmap-item';
-                impacts.innerHTML = '<strong>Linked-clause review paths</strong>';
-                data.impact_analysis.forEach(path => {
-                    const source = clauseById.get(path.clause_id);
-                    const names = path.related_clause_ids.map(id => clauseById.get(id)?.title || id);
-                    const p = document.createElement('p');
-                    p.textContent = `${source?.title || path.clause_id}: ${names.join(' · ')}. ${path.note}`;
-                    impacts.appendChild(p);
-                });
-                if (!data.impact_analysis.length) impacts.append('No linked paths were identified.');
-                container.appendChild(impacts);
-                limits.textContent = [data.diagnostic, data.methodology?.limitations].filter(Boolean).join(' ') || 'Review every relationship against the original contract.';
+                limits.textContent = [data.diagnostic, data.methodology?.limitations].filter(Boolean).join(' ') || 'Review all suggested relationships against the original contract.';
             } catch (error) {
                 if (error.name !== 'AbortError') container.textContent = error.message;
             }
