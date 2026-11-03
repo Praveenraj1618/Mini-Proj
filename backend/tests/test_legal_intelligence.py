@@ -32,13 +32,15 @@ def test_extracts_numbered_and_article_headings_with_original_text():
 
     clauses = extract_clause_evidence(document)
 
-    assert len(clauses) == 2
-    assert clauses[0].title == "1. PAYMENT TERMS"
-    assert clauses[0].heading_detected is True
-    assert clauses[0].text == "1. PAYMENT TERMS\nCustomer shall pay within 30 days."
-    assert clauses[0].pages == [1]
-    assert clauses[1].title == "ARTICLE II — DEFINITIONS"
-    assert "“Services” means the services described in Schedule A." in clauses[1].text
+    assert len(clauses) == 3
+    assert clauses[0].title == "Unclassified section"
+    assert clauses[0].text == "MASTER SERVICES AGREEMENT"
+    assert clauses[1].title == "1. PAYMENT TERMS"
+    assert clauses[1].heading_detected is True
+    assert clauses[1].text == "1. PAYMENT TERMS\\nCustomer shall pay within 30 days."
+    assert clauses[1].pages == [1]
+    assert clauses[2].title == "ARTICLE II — DEFINITIONS"
+    assert "“Services” means the services described in Schedule A." in clauses[2].text
 
 
 def test_clause_continuing_on_next_page_keeps_both_page_references():
