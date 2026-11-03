@@ -353,3 +353,31 @@ def test_fixture_banners_are_removed_and_document_metadata_is_grouped():
     assert "EFFECTIVE / REFERENCE" in metadata[0].text
     assert "12 September 2026" in metadata[0].text
     assert not any(clause.title in {"PARTIES", "DATE", "EFFECTIVE / REFERENCE"} for clause in clauses)
+
+
+
+def test_page_labels_and_wrapped_test_notice_are_excluded():
+    document = make_document([
+        (1, "1. PAYMENT\\nPayment is due within 30 days.\\n"
+            "TEST DATA NOTICE. This document is fictional.\\n"
+            "Names, addresses, dates, events, and terms are invented.\\n"
+            "It is not legal advice or a valid legal instrument.")
+    ])
+    clauses = extract_clause_evidence(document)
+    assert len(clauses) == 1
+    assert "TEST DATA NOTICE" not in clauses[0].text
+    assert "Names, addresses" not in clauses[0].text
+
+
+def test_signature_block_is_split_from_final_contract_clause():
+    document = make_document([
+        (1, "8. POLICIES AND GOVERNING LAW\\n"
+            "This agreement is governed by Indian law. Signatures (sample only) "
+            "For Party A For Party B Name: ______ Date: ______")
+    ])
+    clauses = extract_clause_evidence(document)
+    assert [clause.title for clause in clauses] == [
+        "8. POLICIES AND GOVERNING LAW", "Signatures"
+    ]
+    assert "governed by Indian law" in clauses[0].text
+    assert "For Party A" in clauses[1].text
