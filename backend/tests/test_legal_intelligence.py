@@ -195,8 +195,13 @@ def test_recognizes_common_standalone_contract_headings():
     ])
     clauses = extract_clause_evidence(document)
     titles = [clause.title for clause in clauses]
-    assert titles == ["Unclassified section", "PARTIES", "EFFECTIVE DATE", "RECITALS"]
-    assert all(clause.heading_detected for clause in clauses[1:])
+    assert titles == ["Document information", "RECITALS"]
+    metadata = clauses[0]
+    assert "MUTUAL NON-DISCLOSURE AGREEMENT" in metadata.text
+    assert "PARTIES" in metadata.text
+    assert "EFFECTIVE DATE" in metadata.text
+    assert "This agreement starts on 1 January 2026." in metadata.text
+    assert clauses[1].heading_detected is True
 
 
 def test_recognizes_uppercase_headings_across_contract_styles():
