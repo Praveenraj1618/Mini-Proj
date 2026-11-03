@@ -328,12 +328,12 @@ def test_llm_falls_back_after_three_transient_gemini_503_failures(monkeypatch):
 
 def test_fixture_banners_are_removed_and_document_metadata_is_grouped():
     document = make_document([
-        (1, "CLAUSEIQ TEST FIXTURE • FICTIONAL SAMPLE — NOT FOR LEGAL USE\\n"
-            "CLAUSEIQ • LEGAL DOCUMENT TEST SET\\n"
-            "Sample Civil Court Judgment\\n"
-            "PARTIES\\nFictional Civil Court of Meridian City — Case No. CV-2026-0142\\n"
-            "EFFECTIVE / REFERENCE\\nEFFECTIVE / REFERENCE\\n"
-            "DATE\\n12 September 2026\\n"
+        (1, "CLAUSEIQ TEST FIXTURE • FICTIONAL SAMPLE — NOT FOR LEGAL USE\n"
+            "CLAUSEIQ • LEGAL DOCUMENT TEST SET\n"
+            "Sample Civil Court Judgment\n"
+            "PARTIES\nFictional Civil Court of Meridian City — Case No. CV-2026-0142\n"
+            "EFFECTIVE / REFERENCE\nEFFECTIVE / REFERENCE\n"
+            "DATE\n12 September 2026\n"
             "TEST DATA NOTICE. This document is fictional and created solely to test document upload, OCR, summaries, clause-level risk analysis, obligation extraction, grounded Q&A, and document comparison in ClauseIQ.")
     ])
 
