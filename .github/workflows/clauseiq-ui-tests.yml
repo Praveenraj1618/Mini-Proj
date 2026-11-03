@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - redesign/clauseiq-workspace
+      - feature/mentor-enhancements
   pull_request:
     branches:
       - main
@@ -34,12 +35,12 @@ jobs:
             'summary-container', 'qa-input', 'qa-output', 'clause-input',
             'negotiate-output', 'obligations-container', 'visuals-container',
             'visual-analysis-output', 'compare-file-2', 'compare-container',
-            'llm-status', 'check-ai-button'
+            'llm-status', 'check-ai-button', 'clause-list', 'clause-count', 'simplification-output'
           ];
           for (const id of ids) {
             if (!html.includes(`id="${id}"`)) throw new Error(`Missing required UI element: ${id}`);
           }
-          for (const id of ['heatmap-tab','summary-tab','qa-tab','negotiate-tab','obligations-tab','visuals-tab','compare-tab']) {
+          for (const id of ['heatmap-tab','summary-tab','simplify-tab','qa-tab','negotiate-tab','obligations-tab','visuals-tab','compare-tab']) {
             if (!html.includes(`id="${id}"`)) throw new Error(`Missing analysis panel: ${id}`);
           }
           if (!html.includes('ClauseIQ')) throw new Error('ClauseIQ branding is missing');
