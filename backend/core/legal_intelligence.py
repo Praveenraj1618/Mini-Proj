@@ -65,7 +65,7 @@ def _heading_title(line: str) -> Optional[str]:
                       "SIGNATURE PAGE", "PREAMBLE"}:
         return candidate
     # Document titles identify the instrument; they are not clause headings.
-    if re.search(r"\\b(?:AGREEMENT|CONTRACT|DEED|POLICY)\\s*$", normalized):
+    if re.search(r"\b(?:AGREEMENT|CONTRACT|DEED|POLICY)\s*$", normalized):
         return None
     words = candidate.split()
     if (2 <= len(candidate) <= 72 and len(words) <= 8
