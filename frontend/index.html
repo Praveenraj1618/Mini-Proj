@@ -928,7 +928,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                 });
                 if (!data.impact_analysis.length) impacts.append('No linked paths were identified.');
                 container.appendChild(impacts);
-                limits.textContent = data.methodology?.limitations || 'Review every relationship against the original contract.';
+                limits.textContent = [data.diagnostic, data.methodology?.limitations].filter(Boolean).join(' ') || 'Review every relationship against the original contract.';
             } catch (error) {
                 if (error.name !== 'AbortError') container.textContent = error.message;
             }
