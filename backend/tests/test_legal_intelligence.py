@@ -323,3 +323,27 @@ def test_llm_falls_back_after_three_transient_gemini_503_failures(monkeypatch):
     assert reviewer.last_llm_diagnostic == (
         "Fallback provider Groq succeeded after Gemini (TemporaryUnavailable)."
     )
+
+
+
+def test_fixture_banners_are_removed_and_document_metadata_is_grouped():
+    document = make_document([
+        (1, "CLAUSEIQ TEST FIXTURE • FICTIONAL SAMPLE — NOT FOR LEGAL USE\\n"
+            "CLAUSEIQ • LEGAL DOCUMENT TEST SET\\n"
+            "Sample Civil Court Judgment\\n"
+            "PARTIES\\nFictional Civil Court of Meridian City — Case No. CV-2026-0142\\n"
+            "EFFECTIVE / REFERENCE\\nEFFECTIVE / REFERENCE\\n"
+            "DATE\\n12 September 2026\\n"
+            "TEST DATA NOTICE. This document is fictional and created solely to test document upload, OCR, summaries, clause-level risk analysis, obligation extraction, grounded Q&A, and document comparison in ClauseIQ.")
+    ])
+
+    clauses = extract_clause_evidence(document)
+
+    assert all("CLAUSEIQ TEST FIXTURE" not in clause.text for clause in clauses)
+    assert all("TEST DATA NOTICE" not in clause.text for clause in clauses)
+    metadata = [clause for clause in clauses if clause.title == "Document information"]
+    assert len(metadata) == 1
+    assert "PARTIES" in metadata[0].text
+    assert "EFFECTIVE / REFERENCE" in metadata[0].text
+    assert "12 September 2026" in metadata[0].text
+    assert not any(clause.title in {"PARTIES", "DATE", "EFFECTIVE / REFERENCE"} for clause in clauses)
