@@ -448,7 +448,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
             pendingRequests.forEach(controller => controller.abort());
             pendingRequests.clear();
             ['heatmap-container', 'summary-container', 'qa-output', 'negotiate-output',
-             'obligations-container', 'dependencies-container', 'dependencies-summary', 'dependencies-limits', 'compare-container', 'visuals-container', 'visual-analysis-output']
+             'obligations-container', 'dependencies-container', 'dependencies-summary', 'dependency-graph', 'dependencies-limits', 'compare-container', 'visuals-container', 'visual-analysis-output']
                 .forEach(id => { document.getElementById(id).textContent = 'Upload a contract to begin.'; });
             ['qa-input', 'clause-input', 'compare-file-2'].forEach(id => { document.getElementById(id).value = ''; });
             document.getElementById('doc-stats').classList.add('hidden');
