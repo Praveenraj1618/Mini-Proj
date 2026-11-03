@@ -450,7 +450,7 @@ For each area, provide:
                 validate_findings(uncertainty[category], ("statement",), f"uncertainty.{category}")
 
             serialized = json.dumps(result, ensure_ascii=False)
-            cited = set(re.findall(r"\\[Page \\d+\\]", serialized))
+            cited = set(re.findall(r"\[Page \d+\]", serialized))
             if not cited.issubset(allowed_citations):
                 raise ValueError("The model cited a page outside this clause's evidence.")
             return {**base, "status": "analyzed", **result}
