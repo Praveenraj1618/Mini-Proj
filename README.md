@@ -37,14 +37,16 @@ Edit **root** `.env` and add at least one real key. For example:
 ```dotenv
 GROQ_API_KEY=your_private_key
 GROQ_MODEL=qwen/qwen3.8-27b
-LLM_PROVIDER_ORDER=groq,gemini
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-3.7-flash
+LLM_PROVIDER_ORDER=gemini,groq
 EMBEDDING_MODEL=intfloat/multilingual-e5-small
 OCR_ENABLED=true
 OCR_LANGUAGE=eng+tam+hin
 OCR_TESSDATA=C:/Program Files/Tesseract-OCR/tessdata
 ```
 
-`GEMINI_API_KEY` can be added as a second provider. Use a model ID available to your account and edit `LLM_PROVIDER_ORDER` to match the keys you configured. You may use just one provider. Never commit `.env` or share API keys. `HF_TOKEN` is optional and only helps Hugging Face downloads; it is not an LLM key. `LEGAL_AI_OFFLINE=true` explicitly disables hosted LLM calls.
+Gemini is the default primary provider (`GEMINI_API_KEY`, `GEMINI_MODEL=gemini-3.7-flash`). Groq is shown as the fallback in this example. The backend tries configured providers in `LLM_PROVIDER_ORDER`; change that variable to reorder providers or use only the providers you have configured. Use a model ID available to your account. You may use just one provider. Never commit `.env` or share API keys. `HF_TOKEN` is optional and only helps Hugging Face downloads; it is not an LLM key. `LEGAL_AI_OFFLINE=true` explicitly disables hosted LLM calls.
 
 For OCR, install Tesseract and place `eng.traineddata`, `tam.traineddata`, and `hin.traineddata` in the directory named by `OCR_TESSDATA`. Confirm with `tesseract --list-langs` (or inspect that directory if the executable is not on PATH). Select the actual PDF/OCR language in the UI before upload; Auto/mixed requires all configured packs. Missing packs produce an extraction warning, not an English-only substitute. See [the multilingual setup notes](docs/multilingual_document_review.md) for source-language and font details.
 
