@@ -371,7 +371,7 @@ def test_page_labels_and_wrapped_test_notice_are_excluded():
 
 def test_signature_block_is_split_from_final_contract_clause():
     document = make_document([
-        (1, "8. POLICIES AND GOVERNING LAW\\n"
+        (1, "8. POLICIES AND GOVERNING LAW\n"
             "This agreement is governed by Indian law. Signatures (sample only) "
             "For Party A For Party B Name: ______ Date: ______")
     ])
