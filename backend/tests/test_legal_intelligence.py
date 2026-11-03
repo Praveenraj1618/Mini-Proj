@@ -109,8 +109,8 @@ def test_context_windows_are_neighbouring_evidence_only():
     clauses = extract_clause_evidence(document, context_chars=20)
 
     assert clauses[0].preceding_context == ""
-    assert clauses[0].following_context == "2. TERMINATION\nTERMINATION BODY"[:20]
-    assert clauses[1].preceding_context == "1. PAYMENT\nPAYMENT BODY"[-20:]
+    assert clauses[0].following_context == "2. TERMINATION\nTermination body"[:20]
+    assert clauses[1].preceding_context == "1. PAYMENT\nPayment body"[-20:]
     assert clauses[1].following_context == ""
 
 
