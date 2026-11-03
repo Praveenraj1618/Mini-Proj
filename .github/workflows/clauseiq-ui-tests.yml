@@ -35,6 +35,34 @@ jobs:
           LEGAL_AI_OFFLINE: "true"
         run: python -m pytest backend/tests -q
 
+      - name: Start API and smoke-test server routes
+        env:
+          LEGAL_AI_OFFLINE: "true"
+          PORT: "8765"
+        run: |
+          python backend/app_api.py > /tmp/clauseiq-api.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:8765/api/status -o /tmp/clauseiq-status.json; then
+              break
+            fi
+            sleep 2
+          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          status = json.loads(Path('/tmp/clauseiq-status.json').read_text())
+          assert status.get('status') == 'online', status
+          print('API status route is online.')
+          PY
+          curl --silent --fail http://127.0.0.1:8765/ -o /tmp/clauseiq-home.html
+          grep -q 'ClauseIQ' /tmp/clauseiq-home.html
+          DEPENDENCIES_STATUS=$(curl --silent --output /tmp/clauseiq-dependencies.json --write-out '%{http_code}' http://127.0.0.1:8765/api/dependencies)
+          test "$DEPENDENCIES_STATUS" = "400"
+          grep -q 'No document is loaded' /tmp/clauseiq-dependencies.json
+          echo "Frontend route and authenticated dependency endpoint guard passed."
+
   frontend-state-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 10
