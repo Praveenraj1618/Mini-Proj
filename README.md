@@ -1,6 +1,6 @@
 # Legal AI Intelligence and Negotiation Platform
 
-A PDF-based legal document review prototype with English, Tamil and Hindi workflows. Upload a document to inspect its category, summary, risk areas, cited Q&A, obligations, and visual pages. Contract-like categories also support negotiation drafts and version comparison. **This is a review aid, not legal advice or a verified translation.** Check every result against the cited source and have a qualified person review consequential decisions.
+A PDF-based legal document review prototype with English, Tamil and Hindi workflows. Upload a document to inspect its category, summary, risk areas, cited Q&A, obligations, and visual pages. Contract-like categories also support negotiation drafts. **This is a review aid, not legal advice or a verified translation.** Check every result against the cited source and have a qualified person review consequential decisions.
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/Praveenraj1618/Mini-Proj)
 
@@ -71,7 +71,7 @@ Use `python3 -m venv .venv`, `source .venv/bin/activate`, `python -m pip install
 2. Upload a PDF, confirm the detected **Document category**, and override it if incorrect. Check page count and extraction warnings. The application handles PDF only.
 3. Open **Summary** and **Risk Heatmap**. Ask a specific question in **Grounded Legal Q&A** and verify its cited page and original source excerpt. The answer can fail even when retrieval succeeds, for example when the provider returns HTTP 429.
 4. Inspect **Obligations** for candidate duties, dates, and their source evidence. Use **Visuals & OCR** for page previews; AI image inspection needs a separately configured vision model.
-5. For a contract-like document, use **Negotiation Assistant** and upload a second PDF in **Contract Comparison**. Negotiation is disabled for non-contract families such as judgments and legislation. Comparison is not a certified legal redline.
+5. For a contract-like document, use **Negotiation Assistant**. Negotiation is disabled for non-contract families such as judgments and legislation.
 6. Use **Check AI connection** before a live demo. `/api/status` only reports that a key is configured; it does not verify quota or model access.
 
 Changing response language or category clears prior analysis panels. Changing OCR/source language requires re-upload. Original quotations remain in the source language.
@@ -92,14 +92,14 @@ question -> dense + BM25 candidates -> RRF rank fusion -> optional reranker
 | Configuration/providers | `backend/config.py`, `.env.example` | Reads settings, builds LLM clients and tries configured providers in order. |
 | PDF/OCR/chunking | `backend/core/document_loader.py`, `chunker.py` | Extracts page text or local OCR, carries page references and splits readable text. |
 | Retrieval | `backend/core/retrieval_embeddings.py`, `vector_store.py`, `hybrid_retriever.py` | Multilingual E5 embeddings, per-document Chroma index, BM25, reciprocal rank fusion and optional cross-encoder. |
-| Review logic | `backend/core/legal_reviewer.py`, `review_workflow.py`, `review_profiles.py` | Category routing, summary, heatmap, Q&A, obligations, negotiation and comparisons. |
+| Review logic | `backend/core/legal_reviewer.py`, `review_workflow.py`, `review_profiles.py` | Category routing, summary, heatmap, Q&A, obligations and negotiation. |
 | Dashboard | `frontend/index.html` | Single-page UI, language/category controls, loading and result panels. |
 
 Dense retrieval matches meaning (including cross-language queries); BM25 matches exact words and clause identifiers. RRF combines their ranked candidates. The English cross-encoder reranker is used for English-only content when enabled; for Tamil/Hindi or mixed content it is skipped unless `MULTILINGUAL_RERANKER_MODEL` is explicitly set. `RERANKER_ENABLED=false` disables reranking. The LLM operates **after** retrieval to synthesize answers; it is also used for summaries, category suggestions, obligation extraction, risk analysis and drafting. Tesseract handles OCR locally; it is not the LLM.
 
 Supported broad categories include NDA, services, employment, lease, property, judgments, pleadings, affidavits, legislation, corporate records, wills, powers of attorney, notices, policies, IP licences and other contracts, with an unknown/mixed fallback. This is category routing, **not proof of accuracy for every subtype or jurisdiction**.
 
-Main API routes: `GET /api/status`, `GET /api/summary`, `GET /api/heatmap`, `GET /api/obligations?include_status=1`, `GET /api/visuals`; `POST /api/upload`, `POST /api/qa`, `POST /api/negotiate`, `POST /api/compare`, `POST /api/visuals/analyze`, `POST /api/llm/check`. Upload and analysis use a browser session cookie; use the served UI for the simplest end-to-end workflow. The [frontend integration guide](frontend/README_FRONTEND.md) has API examples.
+Main API routes: `GET /api/status`, `GET /api/summary`, `GET /api/heatmap`, `GET /api/obligations?include_status=1`, `GET /api/visuals`; `POST /api/upload`, `POST /api/qa`, `POST /api/negotiate`, `POST /api/visuals/analyze`, `POST /api/llm/check`. Upload and analysis use a browser session cookie; use the served UI for the simplest end-to-end workflow. The [frontend integration guide](frontend/README_FRONTEND.md) has API examples.
 
 ## Tests and evaluation
 
