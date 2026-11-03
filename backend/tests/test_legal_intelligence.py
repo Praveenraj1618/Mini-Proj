@@ -103,7 +103,7 @@ def test_ids_are_stable_for_same_document_content():
 
 def test_context_windows_are_neighbouring_evidence_only():
     document = make_document([
-        (1, "1. PAYMENT\nPAYMENT BODY\n2. TERMINATION\nTERMINATION BODY"),
+        (1, "1. PAYMENT\nPayment body\n2. TERMINATION\nTermination body"),
     ])
 
     clauses = extract_clause_evidence(document, context_chars=20)
@@ -191,7 +191,7 @@ def test_clause_simplification_reports_unknown_clause_id():
 
 def test_recognizes_common_standalone_contract_headings():
     document = make_document([
-        (1, "MUTUAL NON-DISCLOSURE AGREEMENT\\nPARTIES\\nParty A and Party B enter this agreement.\\nEFFECTIVE DATE\\nThis agreement starts on 1 January 2026.\\nRECITALS\\nThe parties wish to exchange information."),
+        (1, "MUTUAL NON-DISCLOSURE AGREEMENT\nPARTIES\nParty A and Party B enter this agreement.\nEFFECTIVE DATE\nThis agreement starts on 1 January 2026.\nRECITALS\nThe parties wish to exchange information."),
     ])
     clauses = extract_clause_evidence(document)
     titles = [clause.title for clause in clauses]
@@ -208,7 +208,7 @@ def test_recognizes_uppercase_headings_across_contract_styles():
     ]
     for filename, heading, body in samples:
         clauses = extract_clause_evidence(
-            make_document([(1, f"{filename}\\n{heading}\\n{body}")], name=filename + ".pdf")
+            make_document([(1, f"{filename}\n{heading}\n{body}")], name=filename + ".pdf")
         )
         assert len(clauses) == 2
         assert clauses[1].title == heading
@@ -216,7 +216,7 @@ def test_recognizes_uppercase_headings_across_contract_styles():
 
 
 def test_simplification_rejects_findings_without_valid_citations(monkeypatch):
-    document = make_document([(1, "6. LIABILITY\\nNeither party is liable for indirect loss.")])
+    document = make_document([(1, "6. LIABILITY\nNeither party is liable for indirect loss.")])
     reviewer = LegalReviewer(document, None)
     monkeypatch.setattr(reviewer_module, "check_api_key_configured", lambda: True)
     response = {
@@ -236,7 +236,7 @@ def test_simplification_rejects_findings_without_valid_citations(monkeypatch):
 
 
 def test_simplification_handles_provider_failure_without_crashing(monkeypatch):
-    document = make_document([(1, "1. PAYMENT\\nPayment is due within 30 days.")])
+    document = make_document([(1, "1. PAYMENT\nPayment is due within 30 days.")])
     reviewer = LegalReviewer(document, None)
     monkeypatch.setattr(reviewer_module, "check_api_key_configured", lambda: True)
 
