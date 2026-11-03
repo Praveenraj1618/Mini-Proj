@@ -58,7 +58,7 @@ def _heading_title(line: str) -> Optional[str]:
     for pattern in _HEADING_PATTERNS:
         if pattern.match(candidate):
             return candidate
-    normalized = re.sub(r"\\s+", " ", candidate).strip(" :.-–—").upper()
+    normalized = re.sub(r"\s+", " ", candidate).strip(" :.-–—").upper()
     if normalized in {"PARTIES", "EFFECTIVE DATE", "REFERENCE DATE", "RECITALS",
                       "BACKGROUND", "WHEREAS", "DEFINITIONS", "INTERPRETATION",
                       "SCHEDULE", "EXHIBIT", "ANNEX", "APPENDIX", "SIGNATURES",
