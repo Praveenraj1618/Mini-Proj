@@ -5,14 +5,35 @@ on:
     branches:
       - main
       - redesign/clauseiq-workspace
+      - devb
   pull_request:
     branches:
       - main
   workflow_dispatch:
 
 jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install backend dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
+      - name: Run backend test suite
+        env:
+          LEGAL_AI_OFFLINE: "true"
+        run: python -m pytest backend/tests -q
+
   frontend-state-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -32,17 +53,20 @@ jobs:
             'response-language', 'source-language', 'document-category',
             'dropzone-box', 'file-input', 'doc-stats', 'heatmap-container',
             'summary-container', 'qa-input', 'qa-output', 'clause-input',
-            'negotiate-output', 'obligations-container', 'visuals-container',
+            'negotiate-output', 'obligations-container', 'dependencies-container',
+            'dependencies-summary', 'dependency-graph', 'dependencies-limits', 'visuals-container',
             'visual-analysis-output', 'compare-file-2', 'compare-container',
             'llm-status', 'check-ai-button'
           ];
           for (const id of ids) {
             if (!html.includes(`id="${id}"`)) throw new Error(`Missing required UI element: ${id}`);
           }
-          for (const id of ['heatmap-tab','summary-tab','qa-tab','negotiate-tab','obligations-tab','visuals-tab','compare-tab']) {
+          for (const id of ['heatmap-tab','summary-tab','qa-tab','negotiate-tab','obligations-tab','dependencies-tab','visuals-tab','compare-tab']) {
             if (!html.includes(`id="${id}"`)) throw new Error(`Missing analysis panel: ${id}`);
           }
           if (!html.includes('ClauseIQ')) throw new Error('ClauseIQ branding is missing');
+          if (!html.includes('function loadDependencies')) throw new Error('Clause relationship explorer is missing');
+          if (!html.includes('/api/dependencies')) throw new Error('Clause dependency API client is missing');
           if (!html.includes('--gold:#d6ae58')) throw new Error('Gold theme token is missing');
           const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
           if (!scripts.length) throw new Error('No inline application script found');
