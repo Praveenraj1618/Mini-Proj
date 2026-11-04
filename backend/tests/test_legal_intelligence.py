@@ -409,3 +409,55 @@ def test_wrapped_fixture_notice_does_not_discard_contract_text_after_it():
     assert "Customer will pay within 30 days." in combined_text
     assert "TEST DATA NOTICE" not in combined_text
     assert "It is not legal advice" not in combined_text
+
+
+def test_extracts_duplicated_numbered_headings_as_separate_clauses():
+    document = make_document([
+        (1, "RECITALS AND BACKGROUND\\n"
+            "This agreement governs the services.\\n"
+            "1. 1. Definitions and Interpretation\\n"
+            "Definitions apply throughout this Agreement.\\n"
+            "2. 2. Services and Scope\\n"
+            "Provider shall configure the platform.\\n"
+            "3. 3. Implementation Plan and Dependencies\\n"
+            "The parties shall follow the project plan.\\n"
+            "4. 4. Fees, Invoicing and Taxes\\n"
+            "Customer shall pay the fees.\\n"
+            "5. 5. Acceptance and Remediation\\n"
+            "Customer shall review each Deliverable."),
+        (2, "6. 6. Availability and Support\\n"
+            "Provider shall target monthly availability.\\n"
+            "7. 7. Data Protection and Security\\n"
+            "Provider shall protect Customer Data.\\n"
+            "8. 8. Intellectual Property and Licence\\n"
+            "Each party retains its background intellectual property.\\n"
+            "9. 9. Change Control and Order of Precedence\\n"
+            "Changes require written approval.\\n"
+            "10. 10. Termination, Exit and Liability\\n"
+            "Either party may terminate for material breach."),
+        (3, "The termination clause continues on this page.\\n"
+            "SCHEDULES AND CONTRACT PARTICULARS\\n"
+            "Schedule 1 – Contract particulars")
+    ])
+
+    clauses = extract_clause_evidence(document)
+    titles = [clause.title for clause in clauses]
+
+    expected = [
+        "RECITALS AND BACKGROUND",
+        "1. 1. Definitions and Interpretation",
+        "2. 2. Services and Scope",
+        "3. 3. Implementation Plan and Dependencies",
+        "4. 4. Fees, Invoicing and Taxes",
+        "5. 5. Acceptance and Remediation",
+        "6. 6. Availability and Support",
+        "7. 7. Data Protection and Security",
+        "8. 8. Intellectual Property and Licence",
+        "9. 9. Change Control and Order of Precedence",
+        "10. 10. Termination, Exit and Liability",
+        "SCHEDULES AND CONTRACT PARTICULARS",
+    ]
+    assert titles == expected
+    termination = clauses[10]
+    assert termination.pages == [2, 3]
+    assert "continues on this page" in termination.text
