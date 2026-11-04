@@ -246,27 +246,17 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
         </div>
                 </div>
 
-                <div class="glass-card">
-                    <div class="card-header">
-                        <span class="card-title">Quick actions</span>
-                    </div>
-                    <div class="quick-actions">
-                        <button class="btn-primary" onclick="loadSummary()">Executive summary <span aria-hidden="true">↗</span></button>
-                        <button class="btn-primary" onclick="loadHeatmap()">Review risk areas <span aria-hidden="true">↗</span></button>
-                        <button class="btn-primary" onclick="loadObligations()">Extract obligations <span aria-hidden="true">↗</span></button>
-                    </div>
-                </div>
             </aside>
 
             <section class="analysis-stack" aria-label="Document analysis">
                 <div class="tab-bar" role="tablist" aria-label="Document analysis tools">
                     <button type="button" class="tab-btn active" role="tab" aria-selected="true" aria-controls="heatmap-tab" data-tab="heatmap-tab" onclick="switchTab('heatmap-tab', this)">Risk review</button>
                     <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="summary-tab" data-tab="summary-tab" onclick="switchTab('summary-tab', this)">Summary</button>
-                    <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="simplify-tab" data-tab="simplify-tab" onclick="switchTab('simplify-tab', this); loadClauses()">Simplify & clarify</button>
+                    <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="simplify-tab" data-tab="simplify-tab" onclick="switchTab('simplify-tab', this)">Simplify & clarify</button>
                     <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="qa-tab" data-tab="qa-tab" onclick="switchTab('qa-tab', this)">Ask AI</button>
                     <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="negotiate-tab" data-tab="negotiate-tab" onclick="switchTab('negotiate-tab', this)">Negotiation</button>
                     <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="obligations-tab" data-tab="obligations-tab" onclick="switchTab('obligations-tab', this)">Obligations</button>
-                    <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="dependencies-tab" data-tab="dependencies-tab" onclick="switchTab('dependencies-tab', this); loadDependencies()">Clause map</button>
+                    <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="dependencies-tab" data-tab="dependencies-tab" onclick="switchTab('dependencies-tab', this)">Clause map</button>
                     <button type="button" class="tab-btn hidden" role="tab" aria-selected="false" aria-controls="visuals-tab" data-tab="visuals-tab" onclick="switchTab('visuals-tab', this); loadVisuals()">Visuals & OCR</button>
                 </div>
 
@@ -276,6 +266,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                             <span class="card-title">Clause risk review</span>
                             <span class="section-note">Document-specific review areas</span>
                         </div>
+                        <button type="button" class="btn-primary" onclick="loadHeatmap()">Analyze risk</button>
                         <div class="heatmap-list" id="heatmap-container">
                             <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">Upload a PDF document to generate an automated Clause Risk Heatmap.</div>
                         </div>
@@ -288,6 +279,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                             <span class="card-title">Executive summary</span>
                             <span class="section-note">Grounded in document pages</span>
                         </div>
+                        <button type="button" class="btn-primary" onclick="loadSummary()">Generate summary</button>
                         <div id="summary-container">
                             <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">Upload a PDF, then click Executive Summary.</div>
                         </div>
@@ -302,7 +294,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                         </div>
                         <p class="section-note">Select an extracted clause to get a plain-language explanation, ambiguity checks, missing information, clarification questions, and uncertainty labels. Always verify legal conclusions against the original contract.</p>
                         <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:1rem 0;">
-                            <button class="btn-secondary" type="button" onclick="loadClauses()">Refresh clauses</button>
+                            <button class="btn-primary" type="button" onclick="loadClauses()">Load clauses</button>
                             <span id="clause-count" class="section-note">Upload a contract to begin.</span>
                         </div>
                         <div id="clause-list" class="heatmap-list" aria-live="polite">
@@ -321,7 +313,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                         <div class="chat-box">
                             <div class="chat-input-group">
                                 <input type="text" id="qa-input" class="chat-input" placeholder="Ask any question about this contract (e.g. 'What is the liability cap?')" onkeypress="if(event.key==='Enter') executeQA()">
-                                <button class="btn-primary" onclick="executeQA()">Ask AI</button>
+                                <button class="btn-primary" onclick="executeQA()">Get answer</button>
                             </div>
                             <div id="qa-output" style="margin-top: 1rem; font-size: 0.95rem; line-height: 1.6;"></div>
                         </div>
@@ -335,7 +327,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 1rem;">
                             <textarea id="clause-input" class="chat-input" rows="4" placeholder="Paste a risky contract clause here (e.g. 'Either party may terminate immediately without notice and liability is uncapped.')"></textarea>
-                            <button class="btn-primary" style="align-self: flex-end;" onclick="evaluateNegotiation()">Analyze & Draft Safer Alternative</button>
+                            <button class="btn-primary" style="align-self: flex-end;" onclick="evaluateNegotiation()">Analyze clause & draft alternative</button>
                             <div id="negotiate-output" style="margin-top: 1rem;"></div>
                         </div>
                     </div>
@@ -346,6 +338,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                         <div class="card-header">
                             <span class="card-title">📅 Structured Obligation & Deadline Extractor</span>
                         </div>
+                        <button type="button" class="btn-primary" onclick="loadObligations()">Extract obligations</button>
                         <div id="obligations-container">
                             <div style="text-align: center; color: var(--text-secondary); padding: 2rem;">Click 'Obligation Extractor' to parse duties, payments, and deadlines.</div>
                         </div>
@@ -358,6 +351,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                             <span class="card-title">How the clauses connect</span>
                             <span class="section-note">A plain-language guide to related parts of your document</span>
                         </div>
+                        <button type="button" class="btn-primary" onclick="loadDependencies()">Generate clause map</button>
                         <div class="heatmap-item" style="margin-bottom:1rem;">
                             <strong>How to read this map</strong>
                             <p style="margin:.45rem 0;">Each box is one part of your contract. A line means the two parts may need to be read together.</p>
@@ -652,7 +646,7 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
                     document.getElementById('stat-pages').innerText = data.pages;
                     document.getElementById('stat-words').innerText = data.words.toLocaleString();
                     document.getElementById('stat-chunks').innerText = data.chunks;
-                    loadHeatmap();
+                    switchTab('heatmap-tab');
                 } else {
                     alert('Error loading document: ' + (data.error || 'Unknown error'));
                 }
