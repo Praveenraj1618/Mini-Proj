@@ -634,9 +634,10 @@ Instructions:
         liability = re.compile(r"\b(liabilit\w*|indemnif\w*|damages|limitation of liability|hold harmless)\b", re.I)
         security = re.compile(r"\b(encryption|access control|vulnerability management|secure development|backup|logging|privileged access|technical and organisational measures)\b", re.I)
         for clause in extract_clause_evidence(self.document):
+            lines = [x.strip() for x in clause.text.splitlines() if x.strip()]
+            body_text = "\n".join(lines[1:])
             if (re.search(r"\b(liability|indemnity|indemnification)\b", clause.title or "", re.I)
-                    and security.search(clause.text) and not liability.search(clause.text)):
-                lines = [x.strip() for x in clause.text.splitlines() if x.strip()]
+                    and security.search(body_text) and not liability.search(body_text)):
                 quote = next((x for x in lines[1:] if security.search(x)), "")
                 if quote:
                     structural.append({
