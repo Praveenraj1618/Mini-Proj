@@ -615,131 +615,108 @@ Instructions:
         return output_path
 
     def generate_clause_risk_heatmap(self) -> List[Dict[str, Any]]:
-        """
-        Generates a clause-by-clause structural risk heatmap (🟢 LOW, 🟡 MODERATE, 🔴 HIGH).
-        Provides clause name, page citation, risk level, why it is risky, and evidence.
-        """
+        """Review all readable pages against document-family-specific risk topics."""
         if self._cached_heatmap is not None:
             return self._cached_heatmap
 
-        risk_categories = [(topic, topic) for topic in self.profile["topics"]]
+        from core.document_analysis import contract_pages
+        from core.legal_intelligence import extract_clause_evidence
 
-        evidence_by_category = []
-        for cat_name, query_terms in risk_categories:
-            top_docs = self._retrieve(query_terms, top_k=2)
-            if not top_docs:
-                continue
-            ctx = "\n\n".join([f"[Page {d.metadata.get('page_number')}]\n{d.page_content}" for d in top_docs])
-            evidence_by_category.append((cat_name, top_docs, ctx))
+        pages = contract_pages(self.document)
+        if not pages:
+            return []
+        topics = list(self.profile["topics"])
+        doc_type = self._classify_document_heuristically()["doc_type"]
+        evidence = "\n\n".join(f"[Page {p.page_num}]\n{p.text}" for p in pages)
+
+        # A deterministic check catches misleading liability/indemnity headings.
+        structural = []
+        liability = re.compile(r"\b(liabilit\w*|indemnif\w*|damages|limitation of liability|hold harmless)\b", re.I)
+        security = re.compile(r"\b(encryption|access control|vulnerability management|secure development|backup|logging|privileged access|technical and organisational measures)\b", re.I)
+        for clause in extract_clause_evidence(self.document):
+            if (re.search(r"\b(liability|indemnity|indemnification)\b", clause.title or "", re.I)
+                    and security.search(clause.text) and not liability.search(clause.text)):
+                lines = [x.strip() for x in clause.text.splitlines() if x.strip()]
+                quote = next((x for x in lines[1:] if security.search(x)), "")
+                if quote:
+                    structural.append({
+                        "category": "Heading/content consistency",
+                        "category_id": "heading_content_mismatch",
+                        "clause_title": clause.title,
+                        "risk_level": "HIGH",
+                        "page": clause.pages[0],
+                        "excerpt": quote,
+                        "why_risky": "The heading refers to liability or indemnity, but the operative text appears to address security controls without stating a liability allocation.",
+                        "recommendation": "Check whether the clause body is misplaced or incomplete. Add the intended liability/indemnity terms or correct the heading.",
+                    })
 
         if not check_api_key_configured():
-            heatmap_results = []
-            for cat_name, top_docs, _ in evidence_by_category:
-                heatmap_results.append({
-                    "category": cat_name,
-                    "risk_level": "REVIEW REQUIRED",
-                    "page": top_docs[0].metadata.get("page_number", 1),
-                    "clause_title": cat_name,
-                    "excerpt": top_docs[0].page_content[:150] + "...",
-                    "why_risky": "No automated risk rating was produced because an LLM is not configured.",
-                    "recommendation": "Review the cited excerpt with qualified legal counsel.",
-                })
-            self._cached_heatmap = heatmap_results
-            return heatmap_results
+            return [{
+                "category": topic, "category_id": topic, "clause_title": topic,
+                "risk_level": "REVIEW REQUIRED", "page": pages[0].page_num,
+                "excerpt": f"[Page {pages[0].page_num}]",
+                "why_risky": "AI assessment is unavailable; no risk conclusion has been generated.",
+                "recommendation": "Review this document-specific topic manually. Search absence is not proof that a provision is missing.",
+            } for topic in topics] + structural
 
-        combined_context = "\n\n".join(
-            f"### {cat_name}\n{ctx}"
-            for cat_name, _, ctx in evidence_by_category
-        )
-        category_names = [cat_name for cat_name, _, _ in evidence_by_category]
         prompt = f"""
-Perform one clause-level legal risk review for every category below.
+Review this document using its actual document family, not a generic master-services checklist.
+Document type: {doc_type} (profile {self.profile_id}).
+Review topics: {json.dumps(topics, ensure_ascii=False)}.
 
-Document type: {self._classify_document_heuristically()['doc_type']}
+The evidence covers all readable pages of this uploaded document. Do not treat search gaps as proof of absence.
+For an addendum, schedule, policy or ancillary agreement, distinguish terms expected in this document from terms that may be governed by an incorporated master agreement. If a provision is not in this document but may be in an expressly referenced agreement, say "verify in the incorporated agreement"; do not call it a confirmed defect here. Do not assume the other agreement exists or contains the term.
+Distinguish not found in this document, not applicable, unclear, and cross-reference verification. Check whether headings match their operative text. Use only exact quotations and original page numbers. Never invent evidence or jurisdiction-specific legal requirements.
 
-Category evidence:
-{combined_context}
+Return ONLY a JSON array with exactly one object per review topic, in this order: {json.dumps(topics, ensure_ascii=False)}
+Each object: clause_title (exact topic), display_title, risk_level (LOW/MODERATE/HIGH/REVIEW REQUIRED), page (integer), excerpt (verbatim quote), why_risky, recommendation.
+If evidence is insufficient, use REVIEW REQUIRED and state that this is not proof of a contractual defect. Do not label a term missing merely because it is usually found in another document type.
 
-Return ONLY one valid JSON array, with exactly one object for each category and
-in this exact order: {json.dumps(category_names)}
-
-Each object must use this schema:
-{{
-  "clause_title": "exact category name in English, unchanged for matching",
-  "display_title": "short user-facing heading in the selected response language",
-  "risk_level": "LOW" or "MODERATE" or "HIGH" or "REVIEW REQUIRED",
-  "page": page_number_int,
-  "excerpt": "exact 1-2 sentence quote from the supplied evidence",
-  "why_risky": "concise explanation of legal risk or exposure",
-  "recommendation": "appropriate document-specific review step"
-}}
-Do not omit a category. If the excerpts are insufficient, say REVIEW REQUIRED; retrieval absence is not proof of document absence. Explain uncertainty
-using the most relevant cited excerpt instead of inventing contract language.
+FULL DOCUMENT:
+{evidence}
 """
-
         try:
-            response = self._invoke_llm(
-                [SystemMessage(content=LEGAL_SYSTEM_PROMPT), HumanMessage(content=prompt)],
-                max_tokens=2600,
-            )
-            generated_items = parse_llm_json_array(response)
-            if len(generated_items) != len(category_names):
+            raw = self._invoke_llm([SystemMessage(content=LEGAL_SYSTEM_PROMPT), HumanMessage(content=prompt)], max_tokens=3600)
+            items = parse_llm_json_array(raw)
+            if len(items) != len(topics):
                 raise ValueError("Incomplete heatmap categories")
-            by_title = {
-                str(item.get("clause_title", "")).strip(): item
-                for item in generated_items
-                if isinstance(item, dict)
-            }
-
-            heatmap_results = []
-            for index, (cat_name, top_docs, _) in enumerate(evidence_by_category):
-                item = by_title.get(cat_name)
+            by_title = {str(x.get("clause_title", "")).strip(): x for x in items if isinstance(x, dict)}
+            results = []
+            for topic in topics:
+                item = by_title.get(topic)
                 if item is None:
-                    raise ValueError(f"Model omitted heatmap category: {cat_name}")
-
-                risk_level = str(item.get("risk_level", "")).upper()
-                if risk_level not in {"LOW", "MODERATE", "HIGH", "REVIEW REQUIRED"}:
-                    raise ValueError(f"Model returned an invalid risk level for: {cat_name}")
-
-                allowed_pages = {doc.metadata.get("page_number") for doc in top_docs}
-                page = item.get("page")
-                if type(page) is not int or page not in allowed_pages:
-                    raise ValueError("Invalid page citation")
+                    raise ValueError(f"Model omitted category: {topic}")
+                level = str(item.get("risk_level", "")).upper()
+                page_no = item.get("page")
+                source_page = next((p for p in pages if p.page_num == page_no), None)
                 quote = " ".join(str(item.get("excerpt", "")).split())
-                if not quote or not any(quote in " ".join(d.page_content.split()) for d in top_docs if d.metadata.get("page_number") == page):
-                    raise ValueError("Risk evidence is not a source quotation")
-
-                heatmap_results.append({
-                    "category": cat_name,
-                    "clause_title": str(item.get("display_title") or cat_name),
-                    "category_id": cat_name,
-                    "risk_level": risk_level,
-                    "page": page,
-                    "excerpt": str(item.get("excerpt") or top_docs[0].page_content[:150] + "..."),
-                    "why_risky": str(item.get("why_risky") or "Human review is required."),
-                    "recommendation": str(item.get("recommendation") or "Review with qualified legal counsel."),
+                if level not in {"LOW", "MODERATE", "HIGH", "REVIEW REQUIRED"}:
+                    raise ValueError(f"Invalid risk level: {topic}")
+                if source_page is None or not quote or quote not in " ".join(source_page.text.split()):
+                    raise ValueError(f"Unverifiable source quotation: {topic}")
+                if any(not isinstance(item.get(k), str) or not item[k].strip() for k in ("why_risky", "recommendation")):
+                    raise ValueError(f"Incomplete risk explanation: {topic}")
+                results.append({
+                    "category": topic, "category_id": topic,
+                    "clause_title": str(item.get("display_title") or topic),
+                    "risk_level": level, "page": page_no, "excerpt": item["excerpt"],
+                    "why_risky": item["why_risky"], "recommendation": item["recommendation"],
                 })
+            results.extend(structural)
+            self._cached_heatmap = results
+            return results
         except Exception as error:
             diagnostic = self.last_llm_diagnostic or f"Model response failed ({type(error).__name__})."
             if "succeeded" in diagnostic.lower():
-                diagnostic = f"Provider response could not be used ({type(error).__name__})."
-            heatmap_results = []
-            for cat_name, top_docs, _ in evidence_by_category:
-                heatmap_results.append({
-                    "category": cat_name,
-                    "risk_level": "ANALYSIS FAILED",
-                    "page": top_docs[0].metadata.get("page_number"),
-                    "clause_title": cat_name,
-                    "excerpt": top_docs[0].page_content[:150] + "...",
-                    "why_risky": "The LLM could not analyze this category.",
-                    "recommendation": "Check provider availability or use the cited excerpt for manual review.",
-                    "error_type": type(error).__name__,
-                    "diagnostic": diagnostic,
-                })
-
-        if all(item.get("risk_level") != "ANALYSIS FAILED" for item in heatmap_results):
-            self._cached_heatmap = heatmap_results
-        return heatmap_results
+                diagnostic = f"Provider response could not be validated ({type(error).__name__})."
+            return [{
+                "category": topic, "category_id": topic, "clause_title": topic,
+                "risk_level": "ANALYSIS FAILED", "page": pages[0].page_num,
+                "excerpt": f"[Page {pages[0].page_num}]",
+                "why_risky": "The AI risk assessment could not be validated against the complete document evidence.",
+                "recommendation": "Retry the analysis or review the source document manually.",
+                "error_type": type(error).__name__, "diagnostic": diagnostic,
+            } for topic in topics] + structural
 
     def generate_negotiation_strategy(self, clause_text: str) -> Dict[str, Any]:
         """
