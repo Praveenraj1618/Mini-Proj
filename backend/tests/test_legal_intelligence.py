@@ -385,16 +385,16 @@ def test_signature_block_is_split_from_final_contract_clause():
 
 def test_wrapped_fixture_notice_does_not_discard_contract_text_after_it():
     document = make_document([
-        (1, "Document Title Agreement\\n"
-            "PARTIES\\nCustomer and Provider\\n"
-            "TEST DATA NOTICE. This document is fictional and created solely\\n"
-            "to test document upload, OCR, summaries, and clause analysis.\\n"
-            "It is not legal advice or a valid legal instrument.\\n"
-            "BACKGROUND\\nThe parties wish to work together.\\n"
-            "1. SCOPE AND DELIVERABLES\\nProvider will deliver the services.\\n"
-            "2. PAYMENT\\nCustomer will pay within 30 days."),
-        (2, "3. TERM\\nThe agreement lasts one year.\\n"
-            "4. CONFIDENTIALITY\\nEach party must protect confidential information.")
+        (1, "Document Title Agreement\n"
+            "PARTIES\nCustomer and Provider\n"
+            "TEST DATA NOTICE. This document is fictional and created solely\n"
+            "to test document upload, OCR, summaries, and clause analysis.\n"
+            "It is not legal advice or a valid legal instrument.\n"
+            "BACKGROUND\nThe parties wish to work together.\n"
+            "1. SCOPE AND DELIVERABLES\nProvider will deliver the services.\n"
+            "2. PAYMENT\nCustomer will pay within 30 days."),
+        (2, "3. TERM\nThe agreement lasts one year.\n"
+            "4. CONFIDENTIALITY\nEach party must protect confidential information.")
     ])
 
     clauses = extract_clause_evidence(document)
@@ -404,7 +404,7 @@ def test_wrapped_fixture_notice_does_not_discard_contract_text_after_it():
     assert any(title.startswith("2. PAYMENT") for title in titles)
     assert any(title.startswith("3. TERM") for title in titles)
     assert any(title.startswith("4. CONFIDENTIALITY") for title in titles)
-    combined_text = "\\n".join(clause.text for clause in clauses)
+    combined_text = "\n".join(clause.text for clause in clauses)
     assert "Provider will deliver the services." in combined_text
     assert "Customer will pay within 30 days." in combined_text
     assert "TEST DATA NOTICE" not in combined_text
