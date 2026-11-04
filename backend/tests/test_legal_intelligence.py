@@ -466,15 +466,15 @@ def test_extracts_duplicated_numbered_headings_as_separate_clauses():
 def test_dpa_document_is_classified_with_dpa_specific_review_topics():
     from core.review_profiles import infer_profile, PROFILES
 
-    document_text = "DATA PROCESSING & SECURITY ADDENDUM\\nThis addendum is incorporated into the Master Services Agreement."
+    document_text = "DATA PROCESSING & SECURITY ADDENDUM\nThis addendum is incorporated into the Master Services Agreement."
     assert infer_profile(document_text) == "dpa"
     assert "Sub-processors transfers and data subject assistance" in PROFILES["dpa"]["topics"]
 
 
 def test_risk_heatmap_flags_liability_heading_with_security_only_body(monkeypatch):
     document = make_document([
-        (1, "DATA PROCESSING & SECURITY ADDENDUM\\n"
-            "12. LIABILITY ALLOCATION AND PRECEDENCE\\n"
+        (1, "DATA PROCESSING & SECURITY ADDENDUM\n"
+            "12. LIABILITY ALLOCATION AND PRECEDENCE\n"
             "Processor shall implement encryption, access control and vulnerability management.")
     ], name="05_Data_Processing_Security_Addendum.pdf")
     reviewer = LegalReviewer(document, None)
