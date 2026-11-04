@@ -27,6 +27,13 @@ _FIXTURE_NOISE_MARKERS = (
 _HEADING_PATTERNS = (
     re.compile(r"^ARTICLE\s+(?:[0-9]+|[IVXLCDM]+)(?:\s*[:.\-–—]?\s*.*)?$", re.I),
     re.compile(r"^SECTION\s+[0-9]+(?:\.[0-9]+)*(?:\s*[:.\-–—]?\s*.*)?$", re.I),
+    # Some PDF generators duplicate the clause number (for example,
+    # "1. 1. Definitions and Interpretation"). Accept that form explicitly;
+    # the title must still begin with an uppercase letter so numbered body
+    # text is not promoted to a heading.
+    re.compile(
+        r"^\d+(?:\.\d+)*[.)]?\s+\d+(?:\.\d+)*[.)]?\s+[A-Z][^\n]{0,140}$"
+    ),
     re.compile(r"^(?P<number>\d+(?:\.\d+)*)(?:[.)]?)\s+(?P<title>[A-Z][^\n]{0,140})$"),
     re.compile(r"^\([a-zivxlcdm]+\)\s+[A-Z][^\n]{0,100}$", re.I),
 )
