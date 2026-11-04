@@ -141,6 +141,7 @@ def extract_clause_evidence(document, context_chars: int = 400) -> List[ClauseEv
         }
         sections.append(current)
 
+    skipping_fixture_notice = False
     for page in contract_pages(document):
         lines = page.text.splitlines()
         if not lines:
@@ -151,24 +152,27 @@ def extract_clause_evidence(document, context_chars: int = 400) -> List[ClauseEv
             if re.fullmatch(r"page\s+\d+", line.strip(), re.I):
                 continue
 
-            # Benchmark banners are removed. A test-data notice is commonly
-            # wrapped across several PDF text lines, so discard the remainder
-            # of that page once its marker is encountered.
+            # Benchmark banners are removed. Notices can wrap across lines;
+            # skip only the notice paragraph, then resume at Background or a
+            # recognized contractual heading instead of abandoning the page.
             normalized_line = " ".join(line.lower().split())
+            if skipping_fixture_notice:
+                if re.match(r"^background\\b", line.strip(), re.I) or _heading_title(line):
+                    skipping_fixture_notice = False
+                else:
+                    continue
             if "test data notice" in normalized_line:
                 prefix = re.split(r"test data notice", line, maxsplit=1, flags=re.I)[0].strip()
-                if prefix:
-                    line = prefix
-                else:
-                    break
-                if not line:
-                    break
+                skipping_fixture_notice = True
+                if not prefix:
+                    continue
+                line = prefix
             elif _is_fixture_noise(line):
                 continue
 
             # PDF extraction can place a signature label at the end of the
             # preceding clause line. Split it into its own evidence section.
-            signature = re.search(r"\b(signatures?\s*\\(sample only\\))", line, re.I)
+            signature = re.search(r"\b(signatures?\s*\(sample only\))", line, re.I)
             if signature:
                 clause_text = line[:signature.start()].strip()
                 signature_text = line[signature.start():].strip()
