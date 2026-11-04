@@ -473,16 +473,6 @@ svg,img,canvas{filter:grayscale(1)}
                             <span class="section-note">A plain-language guide to related parts of your document</span>
                         </div>
                         <button type="button" class="btn-primary" onclick="loadDependencies()">Generate clause map</button>
-                        <div class="heatmap-item" style="margin-bottom:1rem;">
-                            <strong>How to read this map</strong>
-                            <p style="margin:.45rem 0;">Each box is one part of your contract. A line means the two parts may need to be read together.</p>
-                            <p style="margin:.45rem 0;"><strong>Follow the arrow →</strong> to see which part points to, explains, or may affect the other part.</p>
-                            <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:.65rem;">
-                                <span><span style="color:#16794b;font-weight:800;">━━ Green</span> — the contract directly mentions the other part.</span>
-                                <span><span style="color:#a66a12;font-weight:800;">━━ Gold</span> — AI found a possible connection; please check it.</span>
-                            </div>
-                            <p class="section-note" style="margin:.65rem 0 0;">A connection is a reading guide, not proof that a fine, breach, or other result will automatically happen.</p>
-                        </div>
                         <div id="dependencies-summary" class="summary-grid" aria-live="polite"></div>
                         <div class="heatmap-item">
                             <strong>Connected parts of your contract</strong>
