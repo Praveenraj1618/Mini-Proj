@@ -157,7 +157,7 @@ def extract_clause_evidence(document, context_chars: int = 400) -> List[ClauseEv
             # recognized contractual heading instead of abandoning the page.
             normalized_line = " ".join(line.lower().split())
             if skipping_fixture_notice:
-                if re.match(r"^background\\b", line.strip(), re.I) or _heading_title(line):
+                if re.match(r"^background\b", line.strip(), re.I) or _heading_title(line):
                     skipping_fixture_notice = False
                 else:
                     continue
