@@ -165,6 +165,68 @@ button, .dropzone, select, input, textarea { touch-action: manipulation; }
   .tab-btn { padding: .6rem .65rem; }
 }
 
+
+/* Noir theme: strict monochrome palette */
+:root{
+  color-scheme:dark;
+  --bg-dark:#090909;--card-bg:#141414;--card-border:#303030;
+  --accent-cyan:#d4d4d4;--accent-purple:#bdbdbd;--accent-amber:#a3a3a3;
+  --accent-red:#e5e5e5;--accent-green:#c7c7c7;
+  --text-primary:#f2f2f2;--text-secondary:#a3a3a3;
+  --navy:#f2f2f2;--gold:#a3a3a3;--gold-soft:#242424;
+  --surface:#141414;--surface-muted:#1d1d1d;--focus:#d4d4d4;
+}
+html,body{background:#090909!important;color:#f2f2f2!important}
+body{background-image:none!important}
+header{background:rgba(12,12,12,.96)!important;border-color:#303030!important}
+.logo-icon{background:#ededed!important;color:#090909!important;box-shadow:none!important}
+.logo-title,.page-title,.card-title,.dropzone-text{color:#f5f5f5!important;-webkit-text-fill-color:#f5f5f5!important}
+.logo-sub,.page-description,.workspace-hint,.section-note,.stat-label{color:#a3a3a3!important}
+.eyebrow,.dropzone-icon,.stat-val,#loading-spinner{color:#d4d4d4!important}
+.legal-notice,.status-badge{background:#1b1b1b!important;color:#dedede!important;border-color:#444!important}
+.glass-card,.review-controls,.stat-box,.heatmap-item,.summary-text,.evidence-card,
+.preview-empty,.preview-frame-wrap,.document-preview-card,.preferences-card{
+  background:#141414!important;color:#ededed!important;border-color:#303030!important;
+  box-shadow:none!important
+}
+.review-controls label{color:#d4d4d4!important}
+.review-controls select,.chat-input,select,input,textarea{
+  background:#101010!important;color:#f0f0f0!important;border-color:#414141!important
+}
+input::placeholder,textarea::placeholder,.chat-input::placeholder{color:#777!important}
+.dropzone{background:#111!important;color:#ededed!important;border-color:#555!important}
+.dropzone:hover{background:#1a1a1a!important;border-color:#aaa!important}
+.btn-primary{background:#ededed!important;color:#090909!important;border-color:#ededed!important;box-shadow:none!important}
+.btn-primary:hover{background:#cfcfcf!important;color:#090909!important}
+.btn-secondary,#check-ai-button{background:#191919!important;color:#ededed!important;border-color:#454545!important}
+.btn-secondary:hover,#check-ai-button:hover{background:#292929!important;border-color:#777!important}
+.tab-bar{background:#101010!important;border-color:#303030!important;box-shadow:none!important}
+.tab-btn{background:transparent!important;color:#a8a8a8!important;border-color:transparent!important}
+.tab-btn:hover,.tab-btn.active{background:#292929!important;color:#fff!important;border-color:#555!important;box-shadow:none!important}
+.badge-low,.badge-mod,.badge-high{background:#242424!important;color:#eee!important;border:1px solid #555!important}
+.heatmap-item:hover{border-color:#777!important;box-shadow:none!important}
+.heatmap-excerpt,blockquote{background:#1b1b1b!important;color:#c8c8c8!important;border-color:#777!important}
+.diagnostic{background:#202020!important;color:#ddd!important;border-color:#555!important}
+.evidence-head{color:#e5e5e5!important}
+.custom-table th{background:#242424!important;color:#eee!important;border-color:#444!important}
+.custom-table td{background:#141414!important;color:#ddd!important;border-color:#333!important}
+.custom-table tr:hover td{background:#202020!important}
+.spinner{border-color:#444!important;border-top-color:#eee!important}
+.preview-empty strong{color:#eee!important}
+.preview-frame-wrap iframe{background:#111!important}
+a{color:#e5e5e5!important}
+:focus-visible{outline-color:#eee!important}
+hr{border-color:#333!important}
+svg{filter:grayscale(1)!important}
+img,canvas{filter:grayscale(1)}
+/* Neutralize legacy inline gold/green/red/purple styling in generated panels. */
+[style*="background:#fff"],[style*="background: #fff"],[style*="background:#fc"],[style*="background: #fc"],
+[style*="background:#f"],[style*="background: #f"],[style*="background:rgb"],[style*="background: rgb"]{
+  background:#171717!important
+}
+[style*="border:1px solid #"],[style*="border: 1px solid #"]{border-color:#444!important}
+[style*="color:#"],[style*="color: #"]{color:#ddd!important}
+
 </style>
 </head>
 <body>
